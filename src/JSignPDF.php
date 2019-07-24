@@ -16,6 +16,8 @@ class JSignPDF
     private $certificate;
     private $password;
     private $fileName;
+    private $basePath;
+    private $baseName;
 
     public function sign()
     {
@@ -88,8 +90,15 @@ class JSignPDF
         return $this;
     }
 
+    public function setBasePath($basePath)
+    {
+        $this->basePath = $basePath;
+        return $this;
+    }
+
     private function signFile()
     {
+        $this->baseName = md5(uniqid() . mt_rand());
         $pathJar = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
         $output = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
@@ -106,12 +115,15 @@ class JSignPDF
 
     private function retrievePathTemp()
     {
+        if (!empty($this->basePath)) {
+            return $this->basePath;
+        }
         return __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
     }
 
     private function saveCertificate($certificate)
     {
-        $name = md5(uniqid() . mt_rand()) . ".pfx";
+        $name = $this->baseName . ".pfx";
         $path = "{$this->retrievePathTemp()}{$name}";
         file_put_contents($path, $certificate);
         return $path;
@@ -119,7 +131,7 @@ class JSignPDF
 
     private function savePdf($pdf)
     {
-        $this->fileName = md5(uniqid() . mt_rand()) . ".pdf";
+        $this->fileName = $this->baseName . ".pdf";
         $path = "{$this->retrievePathTemp()}{$this->fileName}";
         file_put_contents($path, $pdf);
         return $path;
@@ -127,9 +139,13 @@ class JSignPDF
 
     private function removeFiles()
     {
-        $files = glob($this->retrievePathTemp() . '/*');
+        $files = array(
+            "{$this->retrievePathTemp()}{$this->baseName}.pfx",
+            "{$this->retrievePathTemp()}{$this->baseName}.pdf",
+            "{$this->retrievePathTemp()}{$this->baseName}_signed.pdf",
+        );
         foreach($files as $file){
-            if(is_file($file)){
+            if(is_file($file)) {
                 unlink($file);
             }
         }
