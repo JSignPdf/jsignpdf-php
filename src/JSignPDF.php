@@ -19,6 +19,11 @@ class JSignPDF
     private $basePath;
     private $baseName;
 
+    public function __construct()
+    {
+        $this->baseName = md5(uniqid() . mt_rand());
+    }
+
     public function sign()
     {
         if (empty($this->pdf))
@@ -98,7 +103,6 @@ class JSignPDF
 
     private function signFile()
     {
-        $this->baseName = md5(uniqid() . mt_rand());
         $pathJar = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
         $output = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
