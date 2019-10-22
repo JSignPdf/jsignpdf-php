@@ -8,6 +8,7 @@ class JSignPDFTest extends PHPUnit_Framework_TestCase
     private $pathPdfTest;
     private $pathCertificateTest;
     private $passwordCertificateTest = 123;
+    private $pathToSaveTmpFiles = __DIR__;
 
     public function setUp()
     {
@@ -17,11 +18,18 @@ class JSignPDFTest extends PHPUnit_Framework_TestCase
 
     public function testSign()
     {
-        $jSignPdf = new JSignPDF();
-        $jSignPdf->setCertificate(file_get_contents($this->pathCertificateTest));
-        $jSignPdf->setPassword($this->passwordCertificateTest);
-        $jSignPdf->setPdf(file_get_contents($this->pathPdfTest));
-        $this->assertNotNull($jSignPdf->sign()->output());
+        $certificate = base64_decode(file_get_contents($this->pathCertificateTest));
+        $pdfFile     = base64_decode(file_get_contents($this->pathPdfTest));
+        $password    = $this->passwordCertificateTest;
+        $jSign       = new JSignPDF();
+        $response = $jSign->setBasePath($this->pathToSaveTmpFiles)
+                          ->setCertificate($certificate)
+                          ->setPassword($password)
+                          ->setPdf($pdfFile)
+                          ->sign()
+                          ->output();
+
+        $this->assertNotNull($response);
     }
 
 }

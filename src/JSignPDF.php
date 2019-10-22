@@ -41,7 +41,7 @@ class JSignPDF
     }
 
     /**
-     * @param string $type (B = Base64 of file signed; P = Path o file Signed; null = Bytes of file (Default))
+     * @param string $type (B = Base64 of file signed; null = Bytes of file (Default))
      * @return mixed
      */
     public function output($type = null)
@@ -84,11 +84,6 @@ class JSignPDF
         return $this;
     }
 
-    public function getPdf()
-    {
-        return $this->pdf;
-    }
-
     public function setPdf($pdf)
     {
         $this->pdf = $this->savePdf($pdf);
@@ -103,9 +98,9 @@ class JSignPDF
 
     private function signFile()
     {
-        $pathJar = $this->retrievePathJar();
+        $pathJar  = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
-        $output = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
+        $output   = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
         if (strpos($output, 'java: not found') !== false) {
             throw new Exception($output);
         }
@@ -162,8 +157,6 @@ class JSignPDF
                 return file_get_contents($this->pathPdfSigned);
             case "B";
                 return base64_encode(file_get_contents($this->pathPdfSigned));
-            case "P";
-                return $this->pathPdfSigned;
             default;
                 new Exception("Invalid Type");
         }
