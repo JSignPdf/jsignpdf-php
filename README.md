@@ -1,5 +1,7 @@
 # jsignpdf-php
 
+This package is only wrapper of [JSignPdf](http://jsignpdf.sourceforge.net/) to use in PHP
+
 ### Installation:
 
 ```sh
