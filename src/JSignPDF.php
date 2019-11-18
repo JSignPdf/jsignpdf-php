@@ -26,11 +26,11 @@ class JSignPDF
 
     public function sign()
     {
-        if (empty($this->pdf))
-            throw new Exception("PDF is Empty");
+        if (empty($this->pdf) || file_exists($this->pdf))
+            throw new Exception("PDF is Empty or Invalid");
 
-        if (empty($this->certificate))
-            throw new Exception("Certificate is Empty");
+        if (empty($this->certificate) || file_exists($this->certificate))
+            throw new Exception("Certificate is Empty or Invalid");
 
         if (empty($this->password))
             throw new Exception("Certificate Password is Empty");
@@ -101,7 +101,8 @@ class JSignPDF
         $pathJar  = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
         $output   = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
-        if (strpos($output, 'java: not found') !== false) {
+        if (strpos($output, 'java: not found') !== false ||
+            strpos($output, 'signature failed') !== false) {
             throw new Exception($output);
         }
         $this->pathPdfSigned = $pathTemp . str_replace('.pdf', '', $this->fileName) . '_signed.pdf';
@@ -124,6 +125,8 @@ class JSignPDF
     {
         $name = $this->baseName . ".pfx";
         $path = "{$this->retrievePathTemp()}{$name}";
+        if (!file_exists($path))
+            throw new Exception("Certificate Invalid Path.");
         file_put_contents($path, $certificate);
         return $path;
     }
@@ -132,6 +135,8 @@ class JSignPDF
     {
         $this->fileName = $this->baseName . ".pdf";
         $path = "{$this->retrievePathTemp()}{$this->fileName}";
+        if (!file_exists($path))
+            throw new Exception("PDF Invalid Path.");
         file_put_contents($path, $pdf);
         return $path;
     }
