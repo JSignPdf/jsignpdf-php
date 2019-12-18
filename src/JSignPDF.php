@@ -26,10 +26,10 @@ class JSignPDF
 
     public function sign()
     {
-        if (empty($this->pdf) || !file_exists($this->pdf))
+        if (empty($this->pdf) || !is_file($this->pdf))
             throw new Exception("PDF is Empty or Invalid");
 
-        if (empty($this->certificate) || !file_exists($this->certificate))
+        if (empty($this->certificate) || !is_file($this->certificate))
             throw new Exception("Certificate is Empty or Invalid");
 
         if (empty($this->password))
@@ -128,8 +128,6 @@ class JSignPDF
     {
         $name = $this->baseName . ".pfx";
         $path = "{$this->retrievePathTemp()}{$name}";
-        if (!file_exists($path))
-            throw new Exception("Certificate Invalid Path.");
         file_put_contents($path, $certificate);
         if (!is_file($path))
             throw new Exception('Erro ao salvar arquivo do Certificado.');
@@ -140,8 +138,6 @@ class JSignPDF
     {
         $this->fileName = $this->baseName . ".pdf";
         $path = "{$this->retrievePathTemp()}{$this->fileName}";
-        if (!file_exists($path))
-            throw new Exception("PDF Invalid Path.");
         file_put_contents($path, $pdf);
         if (!is_file($path))
             throw new Exception('Erro ao salvar arquivo PDF.');
