@@ -104,7 +104,10 @@ class JSignPDF
         if (strpos($output, 'java: not found') !== false) {
             throw new Exception($output);
         }
+
         $this->pathPdfSigned = $pathTemp . str_replace('.pdf', '', $this->fileName) . '_signed.pdf';
+        if (!is_file($this->pathPdfSigned))
+            throw new Exception('Não foi possível assinar o documento PDF.');
     }
 
     private function retrievePathJar()
@@ -125,6 +128,8 @@ class JSignPDF
         $name = $this->baseName . ".pfx";
         $path = "{$this->retrievePathTemp()}{$name}";
         file_put_contents($path, $certificate);
+        if (!is_file($path))
+            throw new Exception('Erro ao salvar arquivo do Certificado.');
         return $path;
     }
 
@@ -133,6 +138,8 @@ class JSignPDF
         $this->fileName = $this->baseName . ".pdf";
         $path = "{$this->retrievePathTemp()}{$this->fileName}";
         file_put_contents($path, $pdf);
+        if (!is_file($path))
+            throw new Exception('Erro ao salvar arquivo PDF.');
         return $path;
     }
 
