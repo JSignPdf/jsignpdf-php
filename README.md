@@ -1,21 +1,31 @@
 # jsignpdf-php
 
+This package is only wrapper of [JSignPdf](http://jsignpdf.sourceforge.net/) to use in PHP
+
 ### Installation:
 
 ```sh
 $ composer require jeidison/jsignpdf-php
 ```
+
+### Warning
+This package use JAVA for sign PDFs
     
 Examples:
 
 ```php
 use Jeidison\JSignPDF\JSignPDF;
 
-$jSignPdf = new JSignPDF();
-$jSignPdf->setCertificate(file_get_contents($this->pathCertificateTest));
-$jSignPdf->setPassword($this->passwordCertificateTest);
-$jSignPdf->setPdf(file_get_contents($this->pathPdfTest));
-$fileSigned = $jSignPdf->sign()->output();
+try {
+    $jSignPdf = new JSignPDF();
+    $jSignPdf->setCertificate(file_get_contents('caminho_do_seu_certificado_aqui.pfx'));
+    $jSignPdf->setPassword('senha_do_seu_certificado_aqui');
+    $jSignPdf->setPdf(file_get_contents('caminho_do_pdf_que_voce_quer_assinar.pdf'));
+    $fileSigned = $jSignPdf->sign()->output();
+    file_put_contents('caminho_onde_voce_quer_salvar_aqui.pdf', $fileSigned);
+} catch (Exception $e) {
+    var_dump($e);
+}
 ```
 
 ### Without composer:
@@ -30,9 +40,14 @@ require_once "path/to/JSignPDF.php";
 
 use Jeidison\JSignPDF\JSignPDF;
 
-$jSignPdf = new JSignPDF();
-$jSignPdf->setCertificate(file_get_contents($this->pathCertificateTest));
-$jSignPdf->setPassword($this->passwordCertificateTest);
-$jSignPdf->setPdf(file_get_contents($this->pathPdfTest));
-$fileSigned = $jSignPdf->sign()->output();
+try {
+    $jSignPdf = new JSignPDF();
+    $jSignPdf->setCertificate(file_get_contents('caminho_do_seu_certificado_aqui.pfx'));
+    $jSignPdf->setPassword('senha_do_seu_certificado_aqui');
+    $jSignPdf->setPdf(file_get_contents('caminho_do_pdf_que_voce_quer_assinar.pdf'));
+    $fileSigned = $jSignPdf->sign()->output();
+    file_put_contents('caminho_onde_voce_quer_salvar_aqui.pdf', $fileSigned);
+} catch (Exception $e) {
+    var_dump($e);
+}
 ```
