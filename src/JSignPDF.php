@@ -26,10 +26,10 @@ class JSignPDF
 
     public function sign()
     {
-        if (empty($this->pdf) || file_exists($this->pdf))
+        if (empty($this->pdf) || !file_exists($this->pdf))
             throw new Exception("PDF is Empty or Invalid");
 
-        if (empty($this->certificate) || file_exists($this->certificate))
+        if (empty($this->certificate) || !file_exists($this->certificate))
             throw new Exception("Certificate is Empty or Invalid");
 
         if (empty($this->password))
