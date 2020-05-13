@@ -98,9 +98,10 @@ class JSignPDF
 
     private function signFile()
     {
-        $pathJar  = $this->retrievePathJar();
+        $pathJar = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
-        $output   = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
+        $java = $this->retrievePathJava();
+        $output = exec("$java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
         if (strpos($output, 'java: not found') !== false ||
             strpos($output, 'signature failed') !== false) {
             throw new Exception($output);
@@ -122,6 +123,14 @@ class JSignPDF
             return $this->basePath;
         }
         return __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
+    }
+
+    private function retrievePathJava()
+    {
+        if (!empty($this->basePath)) {
+            return $this->basePath;
+        }
+        return __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'jre1.8.0_241' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'java';
     }
 
     private function saveCertificate($certificate)
@@ -151,8 +160,8 @@ class JSignPDF
             "{$this->retrievePathTemp()}{$this->baseName}.pdf",
             "{$this->retrievePathTemp()}{$this->baseName}_signed.pdf",
         );
-        foreach($files as $file){
-            if(is_file($file)) {
+        foreach ($files as $file) {
+            if (is_file($file)) {
                 unlink($file);
             }
         }
