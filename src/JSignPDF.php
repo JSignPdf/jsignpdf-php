@@ -98,9 +98,13 @@ class JSignPDF
 
     private function signFile()
     {
-        $pathJar  = $this->retrievePathJar();
+        $pathJar = $this->retrievePathJar();
         $pathTemp = $this->retrievePathTemp();
-        $output   = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
+
+        if (!$this->isPasswordCertificateValid(file_get_contents($this->certificate), $this->password))
+            throw new Exception("Invalid password certificate");
+
+        $output = exec("java -jar {$pathJar} {$this->pdf} -ksf {$this->certificate} -ksp {$this->password} {$this->parameters} -d {$pathTemp}");
         if (strpos($output, 'java: not found') !== false ||
             strpos($output, 'signature failed') !== false) {
             throw new Exception($output);
@@ -108,7 +112,7 @@ class JSignPDF
 
         $this->pathPdfSigned = $pathTemp . str_replace('.pdf', '', $this->fileName) . '_signed.pdf';
         if (!is_file($this->pathPdfSigned))
-            throw new Exception('Não foi possível assinar o documento PDF.');
+            throw new Exception('Signature failed PDF.');
     }
 
     private function retrievePathJar()
@@ -151,8 +155,8 @@ class JSignPDF
             "{$this->retrievePathTemp()}{$this->baseName}.pdf",
             "{$this->retrievePathTemp()}{$this->baseName}_signed.pdf",
         );
-        foreach($files as $file){
-            if(is_file($file)) {
+        foreach ($files as $file) {
+            if (is_file($file)) {
                 unlink($file);
             }
         }
@@ -168,6 +172,11 @@ class JSignPDF
             default;
                 new Exception("Invalid Type");
         }
+    }
+
+    private function isPasswordCertificateValid($certificate, $password)
+    {
+        return openssl_pkcs12_read($certificate, $certInfo, $password);
     }
 
 }
