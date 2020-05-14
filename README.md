@@ -28,9 +28,7 @@ With Java Installed:
 ```php
 
 ...
-
 $param->setIsUseJavaInstalled(true);
-
 ...
 ```
 
