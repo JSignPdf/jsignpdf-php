@@ -7,47 +7,83 @@ This package is only wrapper of [JSignPdf](http://jsignpdf.sourceforge.net/) to 
 ```sh
 $ composer require jeidison/jsignpdf-php
 ```
-
-### Warning
-This package use JAVA for sign PDFs
     
 Examples:
 
 ```php
 use Jeidison\JSignPDF\JSignPDF;
+use Jeidison\JSignPDF\Sign\JSignParam;
 
-try {
-    $jSignPdf = new JSignPDF();
-    $jSignPdf->setCertificate(file_get_contents('caminho_do_seu_certificado_aqui.pfx'));
-    $jSignPdf->setPassword('senha_do_seu_certificado_aqui');
-    $jSignPdf->setPdf(file_get_contents('caminho_do_pdf_que_voce_quer_assinar.pdf'));
-    $fileSigned = $jSignPdf->sign()->output();
-    file_put_contents('caminho_onde_voce_quer_salvar_aqui.pdf', $fileSigned);
-} catch (Exception $e) {
-    var_dump($e);
-}
+$param = JSignParam::instance();
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+$param->setPassword('certificate_password');
+
+$jSignPdf   = new JSignPDF($param);
+$fileSigned = $jSignPdf->sign();
+file_put_contents('/path/to/file/file_signed.pdf', $fileSigned);
 ```
 
-### Without composer:
-
-- Download Repository
-- Unzip file
-
+With Java Installed:
 ```php
-<?php
-
-require_once "path/to/JSignPDF.php";
-
 use Jeidison\JSignPDF\JSignPDF;
+use Jeidison\JSignPDF\Sign\JSignParam;
 
-try {
-    $jSignPdf = new JSignPDF();
-    $jSignPdf->setCertificate(file_get_contents('caminho_do_seu_certificado_aqui.pfx'));
-    $jSignPdf->setPassword('senha_do_seu_certificado_aqui');
-    $jSignPdf->setPdf(file_get_contents('caminho_do_pdf_que_voce_quer_assinar.pdf'));
-    $fileSigned = $jSignPdf->sign()->output();
-    file_put_contents('caminho_onde_voce_quer_salvar_aqui.pdf', $fileSigned);
-} catch (Exception $e) {
-    var_dump($e);
-}
+$param = JSignParam::instance();
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+$param->setPassword('certificate_password');
+$param->setIsUseJavaInstalled(true);
+
+$jSignPdf   = new JSignPDF($param);
+$fileSigned = $jSignPdf->sign();
+file_put_contents('/path/to/file/file_signed.pdf', $fileSigned);
+```
+
+File signed as base64:
+```php
+use Jeidison\JSignPDF\JSignPDF;
+use Jeidison\JSignPDF\Sign\JSignParam;
+
+$param = JSignParam::instance();
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+$param->setPassword('certificate_password');
+$param->setIsOutputTypeBase64(true);
+
+$jSignPdf           = new JSignPDF($param);
+$fileSignedAsBase64 = $jSignPdf->sign();
+file_put_contents('/path/to/file/file_signed.pdf', base64_decode($fileSignedAsBase64));
+```
+
+Change temp directory:
+```php
+use Jeidison\JSignPDF\JSignPDF;
+use Jeidison\JSignPDF\Sign\JSignParam;
+
+$param = JSignParam::instance();
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+$param->setPassword('certificate_password');
+$param->setTempPath('/path/temp/to/sign/files/');
+
+$jSignPdf   = new JSignPDF($param);
+$fileSigned = $jSignPdf->sign();
+file_put_contents('/path/to/file/file_signed.pdf', $fileSigned);
+```
+
+Change parameters of JSignPDF:
+```php
+use Jeidison\JSignPDF\JSignPDF;
+use Jeidison\JSignPDF\Sign\JSignParam;
+
+$param = JSignParam::instance();
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+$param->setPassword('certificate_password');
+$param->setJSignParameters("-a -kst PKCS12 -ts https://freetsa.org/tsr");
+
+$jSignPdf   = new JSignPDF($param);
+$fileSigned = $jSignPdf->sign();
+file_put_contents('/path/to/file/file_signed.pdf', $fileSigned);
 ```
