@@ -16,7 +16,7 @@ class JSignFileService
     public function contentFile($path, $isInBase64 = false)
     {
         $content = file_get_contents($path);
-        return $isInBase64 ? base64_encode($content) : $isInBase64;
+        return $isInBase64 ? base64_encode($content) : $content;
     }
 
     public function storeFile($path, $name, $content)
