@@ -123,17 +123,17 @@ class JSignParam
 
     public function getTempPdfPath()
     {
-        return $this->getTempPath() . DIRECTORY_SEPARATOR . $this->getTempName('.pdf');
+        return $this->getTempPath() . $this->getTempName('.pdf');
     }
 
     public function getTempPdfSignedPath()
     {
-        return $this->getPathPdfSigned() . DIRECTORY_SEPARATOR . $this->getTempName('_signed.pdf');
+        return $this->getPathPdfSigned() . $this->getTempName('_signed.pdf');
     }
 
     public function getTempCertificatePath()
     {
-        return $this->getTempPath() . DIRECTORY_SEPARATOR . $this->getTempName('.pfx');
+        return $this->getTempPath() . $this->getTempName('.pfx');
     }
 
 }
