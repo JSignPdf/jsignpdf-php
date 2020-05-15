@@ -37,8 +37,6 @@ File signed as base64:
 ...
 $param->setIsOutputTypeBase64(true);
 ...
-$fileSignedAsBase64 = $jSignPdf->sign();
-file_put_contents('/path/to/file/file_signed.pdf', base64_decode($fileSignedAsBase64));
 ```
 
 Change temp directory:
