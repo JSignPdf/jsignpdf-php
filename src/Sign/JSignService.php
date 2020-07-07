@@ -25,8 +25,12 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            $output      = exec($commandSign);
-            $isSigned    = $output == 'INFO  Finished: Signature succesfully created.';
+            $out         = exec($commandSign, $output);
+            if (is_array($output))
+                $output = $output[count($output) -1];
+
+            $messageSuccess = "INFO  Finished: Signature succesfully created.";
+            $isSigned       = ($output == $messageSuccess || $out == $messageSuccess);
             $this->throwIf(!$isSigned, "Error to sign PDF. $output");
 
             $fileSigned = $this->fileService->contentFile(
@@ -43,6 +47,7 @@ class JSignService
         } catch (Throwable $e) {
             if ($params->getTempPath())
                 $this->fileService->deleteTempFiles($params->getTempPath(), $params->getTempName());
+
             throw new Exception($e->getMessage());
         }
     }
@@ -55,7 +60,7 @@ class JSignService
         $this->throwIf(empty($params->getPassword()), 'Certificate Password is Empty.');
         $this->throwIf(!$this->isPasswordCertificateValid($params->getCertificate(), $params->getPassword()), 'Certificate Password Invalid.');
         if ($params->isUseJavaInstalled()) {
-            $javaVersion = exec("java -version 2>&1");
+            $javaVersion    = exec("java -version 2>&1");
             $hasJavaVersion = strpos($javaVersion, 'not found') === false;
             $this->throwIf(!$hasJavaVersion, 'Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         }
