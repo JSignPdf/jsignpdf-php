@@ -89,7 +89,7 @@ class JSignService
         $java     = $this->javaCommand($params);
         $jSignPdf = $this->jSignPdfJarPath();
 
-        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp {$params->getPassword()} {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
+        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
     }
 
     private function javaCommand(JSignParam $params)
