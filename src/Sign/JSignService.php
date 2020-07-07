@@ -25,13 +25,13 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            $out         = exec($commandSign, $output);
-            if (is_array($output))
-                $output = $output[count($output) -1];
+            exec($commandSign, $output);
 
+            $out            = json_encode($output);
             $messageSuccess = "INFO  Finished: Signature succesfully created.";
-            $isSigned       = ($output == $messageSuccess || $out == $messageSuccess);
-            $this->throwIf(!$isSigned, "Error to sign PDF. $output");
+            $isSigned       = strpos($out, $messageSuccess) !== false;
+
+            $this->throwIf(!$isSigned, "Error to sign PDF. $out");
 
             $fileSigned = $this->fileService->contentFile(
                 $params->getTempPdfSignedPath(),
