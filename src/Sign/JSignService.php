@@ -59,6 +59,7 @@ class JSignService
         $this->throwIf(empty($params->getCertificate()), 'Certificate is Empty or Invalid.');
         $this->throwIf(empty($params->getPassword()), 'Certificate Password is Empty.');
         $this->throwIf(!$this->isPasswordCertificateValid($params->getCertificate(), $params->getPassword()), 'Certificate Password Invalid.');
+        $this->throwIf($this->isExpiredCertificate($params->getCertificate(), $params->getPassword()), 'Certificate expired.');
         if ($params->isUseJavaInstalled()) {
             $javaVersion    = exec("java -version 2>&1");
             $hasJavaVersion = strpos($javaVersion, 'not found') === false;
@@ -111,5 +112,13 @@ class JSignService
     private function isPasswordCertificateValid($certificate, $password)
     {
         return openssl_pkcs12_read($certificate, $certInfo, $password);
+    }
+
+    private function isExpiredCertificate($certificate, $password)
+    {
+        openssl_pkcs12_read($certificate, $certInfo, $password);
+        $certificate = openssl_x509_parse($certInfo['cert']);
+        $dateCert    = date_create()->setTimestamp($certificate['validTo_time_t']);
+        return $dateCert <= date_create();
     }
 }
