@@ -88,7 +88,7 @@ class JSignService
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
         $jSignPdf = $params->getjSignPdfJarPath();
-        if (!$jSignPdf) {
+        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
         }
 
@@ -97,7 +97,10 @@ class JSignService
 
     private function javaCommand(JSignParam $params)
     {
-        if (!$params->isUseJavaInstalled() && !class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+        if ($params->isUseJavaInstalled()) {
+            return 'java';
+        }
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             throw new Exception("JSignPDF not found, install manually or run composer require jsignpdf/jsignpdf-bin", 1);
         }
         return \JSignPDF\JSignPDFBin\JavaCommandService::instance()->command($params->isUseJavaInstalled());
