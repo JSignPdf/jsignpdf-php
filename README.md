@@ -39,8 +39,6 @@ Without JSignPDF bin:
 composer require jsignpdf/jsignpdf-bin
 ```
 
-setjSignPdfJarPath
-
 File signed as base64:
 ```php
 $param->setIsOutputTypeBase64(true);
