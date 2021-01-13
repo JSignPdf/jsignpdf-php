@@ -16,6 +16,7 @@ class JSignParam
     private $tempPath;
     private $tempName;
     private $isOutputTypeBase64 = false;
+    private $jSignPdfJarPath;
 
     public function __construct()
     {
@@ -108,6 +109,17 @@ class JSignParam
     {
         $this->isUseJavaInstalled = $isUseJavaInstalled;
         return $this;
+    }
+
+    public function setjSignPdfJarPath($jSignPdfJarPath)
+    {
+        $this->jSignPdfJarPath = $jSignPdfJarPath;
+        return $this;
+    }
+
+    public function getjSignPdfJarPath()
+    {
+        return $this->jSignPdfJarPath;
     }
 
     public function isOutputTypeBase64(): bool

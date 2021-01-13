@@ -21,6 +21,9 @@ class JSignPDFTest extends TestCase
 
     public function testSignSuccess()
     {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
         $params = JSignParamBuilder::instance()->withDefault();
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
@@ -36,6 +39,9 @@ class JSignPDFTest extends TestCase
 
     public function testWithWhenResponseIsBase64()
     {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
         $params = JSignParamBuilder::instance()->withDefault()->setIsOutputTypeBase64(true);
         $fileSigned = $this->service->sign($params);
         $this->assertTrue(base64_decode($fileSigned, true) == true);
