@@ -29,6 +29,18 @@ With Java Installed:
 $param->setIsUseJavaInstalled(true);
 ```
 
+With JSignPDF bin:
+```php
+$param->setjSignPdfJarPath('/path/to/jsignpdf');
+```
+
+Without JSignPDF bin:
+```bash
+composer require jsignpdf/jsignpdf-bin
+```
+
+setjSignPdfJarPath
+
 File signed as base64:
 ```php
 $param->setIsOutputTypeBase64(true);
