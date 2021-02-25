@@ -84,6 +84,11 @@ class JSignPDFTest extends TestCase
 
     public function testSignWhenJavaNotFound()
     {
+        $javaVersion    = exec("java -version 2>&1");
+        $hasJavaVersion = strpos($javaVersion, 'not found') === false;
+        if ($hasJavaVersion) {
+            $this->markTestSkipped('Java is already installed, impossible to test if it is not installed');
+        }
         $this->expectExceptionMessage('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
         $this->service->sign($params);
