@@ -17,9 +17,9 @@
       "email": "jeidison.farias@gmail.com"
     }
   ],
-  "minimum-stability": "dev",
+  "minimum-stability": "stable",
   "require": {
-    "php": "^7.1",
+    "php": ">=7.4",
     "ext-openssl": "*",
     "ext-json": "*"
   },
