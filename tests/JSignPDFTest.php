@@ -21,6 +21,9 @@ class JSignPDFTest extends TestCase
 
     public function testSignSuccess()
     {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
         $params = JSignParamBuilder::instance()->withDefault();
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
@@ -36,6 +39,9 @@ class JSignPDFTest extends TestCase
 
     public function testWithWhenResponseIsBase64()
     {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
         $params = JSignParamBuilder::instance()->withDefault()->setIsOutputTypeBase64(true);
         $fileSigned = $this->service->sign($params);
         $this->assertTrue(base64_decode($fileSigned, true) == true);
@@ -78,6 +84,11 @@ class JSignPDFTest extends TestCase
 
     public function testSignWhenJavaNotFound()
     {
+        $javaVersion    = exec("java -version 2>&1");
+        $hasJavaVersion = strpos($javaVersion, 'not found') === false;
+        if ($hasJavaVersion) {
+            $this->markTestSkipped('Java is already installed, impossible to test if it is not installed');
+        }
         $this->expectExceptionMessage('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
         $this->service->sign($params);

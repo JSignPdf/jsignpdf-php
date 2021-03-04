@@ -3,7 +3,6 @@
 namespace Jeidison\JSignPDF\Sign;
 
 use Exception;
-use Jeidison\JSignPDF\JavaCommandService;
 use Jeidison\JSignPDF\JSignFileService;
 use Throwable;
 
@@ -88,19 +87,23 @@ class JSignService
     {
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
-        $jSignPdf = $this->jSignPdfJarPath();
+        $jSignPdf = $params->getjSignPdfJarPath();
+        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
+        }
 
         return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
     }
 
     private function javaCommand(JSignParam $params)
     {
-        return JavaCommandService::instance()->command($params->isUseJavaInstalled());
-    }
-
-    private function jSignPdfJarPath()
-    {
-        return __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'jsignpdf-1.6.4' . DIRECTORY_SEPARATOR . 'JSignPdf.jar';
+        if ($params->isUseJavaInstalled()) {
+            return 'java';
+        }
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            throw new Exception("JSignPDF not found, install manually or run composer require jsignpdf/jsignpdf-bin", 1);
+        }
+        return \JSignPDF\JSignPDFBin\JavaCommandService::instance()->command($params->isUseJavaInstalled());
     }
 
     private function throwIf($condition, $message)
