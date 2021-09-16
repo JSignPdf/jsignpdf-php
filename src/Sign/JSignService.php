@@ -88,7 +88,7 @@ class JSignService
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
         $jSignPdf = $params->getjSignPdfJarPath();
-        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JSignPdfPathService')) {
             $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
         }
 
