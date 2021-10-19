@@ -27,7 +27,7 @@ class JSignService
             exec($commandSign, $output);
 
             $out            = json_encode($output);
-            $messageSuccess = "INFO  Finished: Signature succesfully created.";
+            $messageSuccess = "Finished: Signature succesfully created.";
             $isSigned       = strpos($out, $messageSuccess) !== false;
 
             $this->throwIf(!$isSigned, "Error to sign PDF. $out");
