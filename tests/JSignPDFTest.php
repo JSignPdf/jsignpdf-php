@@ -82,6 +82,13 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
     }
 
+    public function testSignWhenJarNotFound()
+    {
+        $this->expectExceptionMessageMatches('/Jar of JSignPDF not found on path/');
+        $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
+        $this->service->sign($params);
+    }
+
     public function testSignWhenJavaNotFound()
     {
         $javaVersion    = exec("java -version 2>&1");
