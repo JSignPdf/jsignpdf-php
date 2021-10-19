@@ -92,7 +92,7 @@ class JSignService
             $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
         }
 
-        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
+        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
     }
 
     private function javaCommand(JSignParam $params)
