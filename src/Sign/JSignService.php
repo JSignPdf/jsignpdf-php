@@ -91,6 +91,7 @@ class JSignService
         if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JSignPdfPathService')) {
             $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
         }
+        $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
         return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
     }
