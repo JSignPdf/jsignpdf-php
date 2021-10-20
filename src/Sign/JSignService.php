@@ -27,7 +27,7 @@ class JSignService
             exec($commandSign, $output);
 
             $out            = json_encode($output);
-            $messageSuccess = "INFO  Finished: Signature succesfully created.";
+            $messageSuccess = "Finished: Signature succesfully created.";
             $isSigned       = strpos($out, $messageSuccess) !== false;
 
             $this->throwIf(!$isSigned, "Error to sign PDF. $out");
@@ -93,7 +93,7 @@ class JSignService
         }
         $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
-        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()}";
+        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
     }
 
     private function javaCommand(JSignParam $params)
