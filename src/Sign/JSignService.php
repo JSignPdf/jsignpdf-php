@@ -24,7 +24,7 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            exec($commandSign, $output);
+            \exec($commandSign, $output);
 
             $out            = json_encode($output);
             $messageSuccess = "Finished: Signature succesfully created.";
