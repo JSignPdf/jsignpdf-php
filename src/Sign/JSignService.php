@@ -101,6 +101,9 @@ class JSignService
         if ($params->isUseJavaInstalled()) {
             return 'java';
         }
+        if ($params->getJavaPath()) {
+            return $params->getJavaPath();
+        }
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             throw new Exception("JSignPDF not found, install manually or run composer require jsignpdf/jsignpdf-bin", 1);
         }

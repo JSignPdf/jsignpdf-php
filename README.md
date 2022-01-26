@@ -29,6 +29,11 @@ With Java Installed:
 $param->setIsUseJavaInstalled(true);
 ```
 
+With standalone Java:
+```php
+$param->setJavaPath('/path/to/bin/java');
+```
+
 With JSignPDF bin:
 ```php
 $param->setjSignPdfJarPath('/path/to/jsignpdf');
