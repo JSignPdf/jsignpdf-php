@@ -13,6 +13,7 @@ class JSignParam
     private $pathPdfSigned;
     private $JSignParameters = "-a -kst PKCS12";
     private $isUseJavaInstalled = false;
+    private $javaPath = '';
     private $tempPath;
     private $tempName;
     private $isOutputTypeBase64 = false;
@@ -109,6 +110,15 @@ class JSignParam
     {
         $this->isUseJavaInstalled = $isUseJavaInstalled;
         return $this;
+    }
+
+    public function setJavaPath($javaPath): self {
+        $this->javaPath = $javaPath;
+        return $this;
+    }
+
+    public function getJavaPath(): string {
+        return $this->javaPath;
     }
 
     public function setjSignPdfJarPath($jSignPdfJarPath)
