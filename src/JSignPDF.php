@@ -29,6 +29,11 @@ class JSignPDF
         return $this->service->sign($this->param);
     }
 
+    public function getVersion()
+    {
+        return $this->service->getVersion($this->param);
+    }
+
     public function setParam(JSignParam $param)
     {
         $this->param = $param;
