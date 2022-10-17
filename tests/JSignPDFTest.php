@@ -100,4 +100,11 @@ class JSignPDFTest extends TestCase
         $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
         $this->service->sign($params);
     }
+
+    public function testGetVersion()
+    {
+        $params = JSignParamBuilder::instance()->withDefault();
+        $version = $this->service->getVersion($params);
+        $this->assertNotEmpty($version);
+    }
 }

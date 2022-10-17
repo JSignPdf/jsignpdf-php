@@ -51,6 +51,20 @@ class JSignService
         }
     }
 
+    public function getVersion(JSignParam $params)
+    {
+        $java     = $this->javaCommand($params);
+        $jSignPdf = $params->getjSignPdfJarPath();
+        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JSignPdfPathService')) {
+            $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
+        }
+        $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
+
+        $command = "$java -jar $jSignPdf --version";
+        \exec($command, $output);
+        return explode('version ', $output[0])[1];
+    }
+
     private function validation(JSignParam $params)
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
