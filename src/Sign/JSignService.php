@@ -62,6 +62,9 @@ class JSignService
 
         $command = "$java -jar $jSignPdf --version";
         \exec($command, $output);
+        if (empty($output) || strpos($output[0], 'version') === false) {
+            return '';
+        }
         return explode('version ', $output[0])[1];
     }
 
