@@ -60,7 +60,7 @@ class JSignService
         }
         $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
-        $command = "$java -jar $jSignPdf --version";
+        $command = "$java -jar $jSignPdf --version 2>&1";
         \exec($command, $output);
         if (empty($output) || strpos($output[0], 'version') === false) {
             return '';
