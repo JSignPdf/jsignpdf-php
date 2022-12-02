@@ -62,10 +62,11 @@ class JSignService
 
         $command = "$java -jar $jSignPdf --version 2>&1";
         \exec($command, $output);
-        if (empty($output) || strpos($output[0], 'version') === false) {
+        $lastRow = end($output);
+        if (empty($output) || strpos($lastRow, 'version') === false) {
             return '';
         }
-        return explode('version ', $output[0])[1];
+        return explode('version ', $lastRow)[1];
     }
 
     private function validation(JSignParam $params)
