@@ -3,12 +3,12 @@
 namespace Jeidison\JSignPDF\Sign;
 
 function exec(string $command, array &$output = null, int &$return_var = null) {
-	global $mockExec;
-	if ($mockExec) {
-		$output = $mockExec;
-		return $output;
-	}
-	return \exec($command, $output, $return_var);
+    global $mockExec;
+    if ($mockExec) {
+        $output = $mockExec;
+        return $output;
+    }
+    return \exec($command, $output, $return_var);
 }
 
 namespace Jeidison\JSignPDF\Tests;
@@ -27,8 +27,8 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
-		global $mockExec;
-		$mockExec = null;
+        global $mockExec;
+        $mockExec = null;
         $this->service = new JSignService();
     }
 
@@ -54,7 +54,14 @@ class JSignPDFTest extends TestCase
         $temporaryFile = tempnam(sys_get_temp_dir(), 'cfg');
         $csr = openssl_csr_new($csrNames, $privateKey);
         $x509 = openssl_csr_sign($csr, $rootCertificate, $rootPrivateKey, 365);
-        return $this->service->exportToPkcs12($x509, $privateKey, $password);
+        $certContent = null;
+        openssl_pkcs12_export(
+            $x509,
+            $certContent,
+            $privateKey,
+            $password,
+        );
+        return $certContent;
     }
 
     public function testSignSuccess()
@@ -73,16 +80,16 @@ class JSignPDFTest extends TestCase
      */
     public function testSignUsingDifferentPasswords(string $password)
     {
-		global $mockExec;
+        global $mockExec;
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
         $params = JSignParamBuilder::instance()->withDefault();
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
-		$mockExec = 'Finished: Signature succesfully created.';
-		$path = $params->getTempPdfSignedPath();
-		file_put_contents($path, 'dummy');
+        $mockExec = 'Finished: Signature succesfully created.';
+        $path = $params->getTempPdfSignedPath();
+        file_put_contents($path, 'dummy');
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
     }

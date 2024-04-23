@@ -205,7 +205,7 @@ class JSignService
         return [];
     }
 
-    public function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password)
+    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password)
     {
         $certContent = null;
         openssl_pkcs12_export(
