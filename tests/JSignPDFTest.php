@@ -41,19 +41,7 @@ class JSignPDFTest extends TestCase
         $temporaryFile = tempnam(sys_get_temp_dir(), 'cfg');
         $csr = openssl_csr_new($csrNames, $privateKey);
         $x509 = openssl_csr_sign($csr, $rootCertificate, $rootPrivateKey, 365);
-        return $this->exportToPkcs12($x509, $privateKey, $password);
-    }
-
-    private function exportToPkcs12(\OpenSSLCertificate $certificate, \OpenSSLAsymmetricKey $privateKey, string $password)
-    {
-        $certContent = null;
-        openssl_pkcs12_export(
-            $certificate,
-            $certContent,
-            $privateKey,
-            $password,
-        );
-        return $certContent;
+        return $this->service->exportToPkcs12($x509, $privateKey, $password);
     }
 
     public function testSignSuccess()
@@ -67,17 +55,29 @@ class JSignPDFTest extends TestCase
         $this->assertNotNull($fileSigned);
     }
 
-    public function testSignUsingPasswordWithQuote()
+    /**
+     * @dataProvider providerSignUsingDifferentPasswords
+     */
+    public function testSignUsingDifferentPasswords(string $password)
     {
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
         $params = JSignParamBuilder::instance()->withDefault();
-        $password = "with ' quote";
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
+    }
+
+    public function providerSignUsingDifferentPasswords()
+    {
+        return [
+            ["with ' quote"],
+            ['with ( parentheis )'],
+            ['with $ dollar'],
+            ['with 😃 unicode'],
+        ];
     }
 
     public function testCertificateExpired()
