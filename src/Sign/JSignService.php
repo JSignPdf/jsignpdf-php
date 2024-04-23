@@ -111,7 +111,8 @@ class JSignService
         }
         $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
-        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp '{$params->getPassword()}' {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
+        $password = escapeshellarg($params->getPassword());
+        return "$java -jar $jSignPdf $pdf -ksf $certificate -ksp {$password} {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
     }
 
     private function javaCommand(JSignParam $params)
