@@ -19,11 +19,60 @@ class JSignPDFTest extends TestCase
         $this->service = new JSignService();
     }
 
+    private function getNewCert($password)
+    {
+        $privateKey = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+
+        $csrNames = ['commonName' => 'Jhon Doe'];
+
+        $csr = openssl_csr_new($csrNames, $privateKey, ['digest_alg' => 'sha256']);
+        $x509 = openssl_csr_sign($csr, null, $privateKey, $days = 365, ['digest_alg' => 'sha256']);
+
+        openssl_x509_export($x509, $rootCertificate);
+        openssl_pkey_export($privateKey, $rootPrivateKey);
+
+        $privateKey = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'cfg');
+        $csr = openssl_csr_new($csrNames, $privateKey);
+        $x509 = openssl_csr_sign($csr, $rootCertificate, $rootPrivateKey, 365);
+        return $this->exportToPkcs12($x509, $privateKey, $password);
+    }
+
+    private function exportToPkcs12(\OpenSSLCertificate $certificate, \OpenSSLAsymmetricKey $privateKey, string $password)
+    {
+        $certContent = null;
+        openssl_pkcs12_export(
+            $certificate,
+            $certContent,
+            $privateKey,
+            $password,
+        );
+        return $certContent;
+    }
+
     public function testSignSuccess()
     {
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
+        $params = JSignParamBuilder::instance()->withDefault();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $fileSigned = $this->service->sign($params);
+        $this->assertNotNull($fileSigned);
+    }
+
+    public function testCertificateExpired()
+    {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
+        $this->expectExceptionMessage('Certificate expired.');
         $params = JSignParamBuilder::instance()->withDefault();
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
@@ -43,6 +92,7 @@ class JSignPDFTest extends TestCase
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
         $params = JSignParamBuilder::instance()->withDefault()->setIsOutputTypeBase64(true);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
         $fileSigned = $this->service->sign($params);
         $this->assertTrue(base64_decode($fileSigned, true) == true);
     }
@@ -82,11 +132,12 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
     }
 
-    public function testSignWhenJarNotFound()
+    public function testJSignPDFNotFound()
     {
         $this->expectExceptionMessageMatches('/Jar of JSignPDF not found on path/');
-        $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
-        $this->service->sign($params);
+        $params = JSignParamBuilder::instance()->withDefault()->setjSignPdfJarPath('invalid_path');
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $this->service->getVersion($params);
     }
 
     public function testSignWhenJavaNotFound()
@@ -98,6 +149,7 @@ class JSignPDFTest extends TestCase
         }
         $this->expectExceptionMessage('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
         $this->service->sign($params);
     }
 
