@@ -22,7 +22,6 @@ class JSignService
     {
         try {
             $this->validation($params);
-            $this->repackCertificateIfPasswordIsUnicode($params);
 
             $commandSign = $this->commandSign($params);
             \exec($commandSign, $output);
@@ -57,12 +56,11 @@ class JSignService
      * unicode chars. As workaround, I changed the password certificate in
      * memory.
      */
-    private function repackCertificateIfPasswordIsUnicode(JSignParam $params)
+    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey)
     {
         if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
             $password = md5(microtime());
-            $certInfo = $this->pkcs12Read($params);
-            $newCert = $this->exportToPkcs12($certInfo['cert'], $certInfo['pkey'], $password);
+            $newCert = $this->exportToPkcs12($cert, $pkey, $password);
             $params->setPassword($password);
             $params->setCertificate($newCert);
         }
@@ -86,7 +84,7 @@ class JSignService
         return explode('version ', $lastRow)[1];
     }
 
-    private function validation(JSignParam $params)
+    public function validation(JSignParam $params)
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
         $this->throwIf(empty($params->getPdf()), 'PDF is Empty or Invalid.');
@@ -175,6 +173,7 @@ class JSignService
         $certificate = $params->getCertificate();
         $password = $params->getPassword();
         if (openssl_pkcs12_read($certificate, $certInfo, $password)) {
+            $this->repackCertificateIfPasswordIsUnicode($params, $certInfo['cert'], $certInfo['pkey']);
             return $certInfo;
         }
         $msg = openssl_error_string();
@@ -200,6 +199,7 @@ class JSignService
             unlink($tempEncriptedRepacked);
             unlink($tempDecrypted);
             openssl_pkcs12_read($certificateRepacked, $certInfo, $password);
+            $this->repackCertificateIfPasswordIsUnicode($params, $certInfo['cert'], $certInfo['pkey']);
             return $certInfo;
         }
         return [];

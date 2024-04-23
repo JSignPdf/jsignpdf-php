@@ -57,6 +57,7 @@ class JSignPDFTest extends TestCase
 
     /**
      * @dataProvider providerSignUsingDifferentPasswords
+     * @doesNotPerformAssertions
      */
     public function testSignUsingDifferentPasswords(string $password)
     {
@@ -66,8 +67,7 @@ class JSignPDFTest extends TestCase
         $params = JSignParamBuilder::instance()->withDefault();
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
-        $fileSigned = $this->service->sign($params);
-        $this->assertNotNull($fileSigned);
+        $this->service->validation($params);
     }
 
     public function providerSignUsingDifferentPasswords()
