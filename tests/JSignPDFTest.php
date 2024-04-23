@@ -1,5 +1,16 @@
 <?php
 
+namespace Jeidison\JSignPDF\Sign;
+
+function exec(string $command, array &$output = null, int &$return_var = null) {
+	global $mockExec;
+	if ($mockExec) {
+		$output = $mockExec;
+		return $output;
+	}
+	return \exec($command, $output, $return_var);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use Exception;
@@ -16,6 +27,8 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
+		global $mockExec;
+		$mockExec = null;
         $this->service = new JSignService();
     }
 
@@ -57,17 +70,21 @@ class JSignPDFTest extends TestCase
 
     /**
      * @dataProvider providerSignUsingDifferentPasswords
-     * @doesNotPerformAssertions
      */
     public function testSignUsingDifferentPasswords(string $password)
     {
+		global $mockExec;
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
         $params = JSignParamBuilder::instance()->withDefault();
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
-        $this->service->validation($params);
+		$mockExec = 'Finished: Signature succesfully created.';
+		$path = $params->getTempPdfSignedPath();
+		file_put_contents($path, 'dummy');
+        $fileSigned = $this->service->sign($params);
+        $this->assertNotNull($fileSigned);
     }
 
     public function providerSignUsingDifferentPasswords()

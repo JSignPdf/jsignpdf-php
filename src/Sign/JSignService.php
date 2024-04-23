@@ -24,7 +24,7 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            \exec($commandSign, $output);
+            exec($commandSign, $output);
 
             $out            = json_encode($output);
             $messageSuccess = "Finished: Signature succesfully created.";
@@ -84,7 +84,7 @@ class JSignService
         return explode('version ', $lastRow)[1];
     }
 
-    public function validation(JSignParam $params)
+    private function validation(JSignParam $params)
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
         $this->throwIf(empty($params->getPdf()), 'PDF is Empty or Invalid.');
