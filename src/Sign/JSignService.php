@@ -136,12 +136,57 @@ class JSignService
 
     private function isPasswordCertificateValid($certificate, $password)
     {
-        return openssl_pkcs12_read($certificate, $certInfo, $password);
+        return $this->pkcs12Read($certificate, $password);
+    }
+
+    /**
+     * Prevent error to read certificate generated with old version of
+     * openssl and using a newest version of openssl.
+     *
+     * To check the password is necessary to repack the certificate using
+     * openssl command. If the command don't exists, will consider that
+     * the password is invalid.
+     *
+     * Reference:
+     *
+     * https://github.com/php/php-src/issues/12128
+     * https://www.php.net/manual/en/function.openssl-pkcs12-read.php#128992
+     */
+    private function pkcs12Read($certificate, $password)
+    {
+        if (openssl_pkcs12_read($certificate, $certInfo, $password)) {
+            return $certInfo;
+        }
+        $msg = openssl_error_string();
+        if ($msg === 'error:0308010C:digital envelope routines::unsupported') {
+            if (!shell_exec('openssl version')) {
+                return [];
+            }
+            $tempPassword = tempnam(sys_get_temp_dir(), 'pfx');
+            $tempEncriptedOriginal = tempnam(sys_get_temp_dir(), 'original');
+            $tempEncriptedRepacked = tempnam(sys_get_temp_dir(), 'repacked');
+            $tempDecrypted = tempnam(sys_get_temp_dir(), 'decripted');
+            file_put_contents($tempPassword, $password);
+            file_put_contents($tempEncriptedOriginal, $certificate);
+            shell_exec(<<<REPACK_COMMAND
+                cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
+                cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
+                REPACK_COMMAND
+            );
+            $certificateRepacked = file_get_contents($tempEncriptedRepacked);
+            unlink($tempPassword);
+            unlink($tempEncriptedOriginal);
+            unlink($tempEncriptedRepacked);
+            unlink($tempDecrypted);
+            openssl_pkcs12_read($certificateRepacked, $certInfo, $password);
+            return $certInfo;
+        }
+        return [];
     }
 
     private function isExpiredCertificate($certificate, $password)
     {
-        openssl_pkcs12_read($certificate, $certInfo, $password);
+        $certInfo = $this->pkcs12Read($certificate, $password);
         $certificate = openssl_x509_parse($certInfo['cert']);
         $dateCert    = date_create()->setTimestamp($certificate['validTo_time_t']);
         return $dateCert <= date_create();
