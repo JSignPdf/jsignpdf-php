@@ -67,6 +67,19 @@ class JSignPDFTest extends TestCase
         $this->assertNotNull($fileSigned);
     }
 
+    public function testSignUsingPasswordWithQuote()
+    {
+        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
+            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
+        }
+        $params = JSignParamBuilder::instance()->withDefault();
+        $password = "with ' quote";
+        $params->setCertificate($this->getNewCert($password));
+        $params->setPassword($password);
+        $fileSigned = $this->service->sign($params);
+        $this->assertNotNull($fileSigned);
+    }
+
     public function testCertificateExpired()
     {
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
