@@ -24,7 +24,7 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            \exec($commandSign, $output);
+            exec($commandSign, $output);
 
             $out            = json_encode($output);
             $messageSuccess = "Finished: Signature succesfully created.";
@@ -48,6 +48,21 @@ class JSignService
                 $this->fileService->deleteTempFiles($params->getTempPath(), $params->getTempName());
 
             throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * JSignPdf don't works as well at CLI interfaceif the password have
+     * unicode chars. As workaround, I changed the password certificate in
+     * memory.
+     */
+    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey)
+    {
+        if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
+            $password = md5(microtime());
+            $newCert = $this->exportToPkcs12($cert, $pkey, $password);
+            $params->setPassword($password);
+            $params->setCertificate($newCert);
         }
     }
 
@@ -75,8 +90,8 @@ class JSignService
         $this->throwIf(empty($params->getPdf()), 'PDF is Empty or Invalid.');
         $this->throwIf(empty($params->getCertificate()), 'Certificate is Empty or Invalid.');
         $this->throwIf(empty($params->getPassword()), 'Certificate Password is Empty.');
-        $this->throwIf(!$this->isPasswordCertificateValid($params->getCertificate(), $params->getPassword()), 'Certificate Password Invalid.');
-        $this->throwIf($this->isExpiredCertificate($params->getCertificate(), $params->getPassword()), 'Certificate expired.');
+        $this->throwIf(!$this->isPasswordCertificateValid($params), 'Certificate Password Invalid.');
+        $this->throwIf($this->isExpiredCertificate($params), 'Certificate expired.');
         if ($params->isUseJavaInstalled()) {
             $javaVersion    = exec("java -version 2>&1");
             $hasJavaVersion = strpos($javaVersion, 'not found') === false;
@@ -135,9 +150,9 @@ class JSignService
             throw new Exception($message);
     }
 
-    private function isPasswordCertificateValid($certificate, $password)
+    private function isPasswordCertificateValid(JSignParam $params)
     {
-        return $this->pkcs12Read($certificate, $password);
+        return $this->pkcs12Read($params);
     }
 
     /**
@@ -153,9 +168,12 @@ class JSignService
      * https://github.com/php/php-src/issues/12128
      * https://www.php.net/manual/en/function.openssl-pkcs12-read.php#128992
      */
-    private function pkcs12Read($certificate, $password)
+    private function pkcs12Read(JSignParam $params)
     {
+        $certificate = $params->getCertificate();
+        $password = $params->getPassword();
         if (openssl_pkcs12_read($certificate, $certInfo, $password)) {
+            $this->repackCertificateIfPasswordIsUnicode($params, $certInfo['cert'], $certInfo['pkey']);
             return $certInfo;
         }
         $msg = openssl_error_string();
@@ -175,19 +193,33 @@ class JSignService
                 REPACK_COMMAND
             );
             $certificateRepacked = file_get_contents($tempEncriptedRepacked);
+            $params->setCertificate($certificateRepacked);
             unlink($tempPassword);
             unlink($tempEncriptedOriginal);
             unlink($tempEncriptedRepacked);
             unlink($tempDecrypted);
             openssl_pkcs12_read($certificateRepacked, $certInfo, $password);
+            $this->repackCertificateIfPasswordIsUnicode($params, $certInfo['cert'], $certInfo['pkey']);
             return $certInfo;
         }
         return [];
     }
 
-    private function isExpiredCertificate($certificate, $password)
+    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password)
     {
-        $certInfo = $this->pkcs12Read($certificate, $password);
+        $certContent = null;
+        openssl_pkcs12_export(
+            $certificate,
+            $certContent,
+            $privateKey,
+            $password,
+        );
+        return $certContent;
+    }
+
+    private function isExpiredCertificate(JSignParam $params)
+    {
+        $certInfo = $this->pkcs12Read($params);
         $certificate = openssl_x509_parse($certInfo['cert']);
         $dateCert    = date_create()->setTimestamp($certificate['validTo_time_t']);
         return $dateCert <= date_create();

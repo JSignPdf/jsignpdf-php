@@ -1,5 +1,16 @@
 <?php
 
+namespace Jeidison\JSignPDF\Sign;
+
+function exec(string $command, array &$output = null, int &$return_var = null) {
+    global $mockExec;
+    if ($mockExec) {
+        $output = $mockExec;
+        return $output;
+    }
+    return \exec($command, $output, $return_var);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use Exception;
@@ -16,6 +27,8 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
+        global $mockExec;
+        $mockExec = null;
         $this->service = new JSignService();
     }
 
@@ -41,14 +54,9 @@ class JSignPDFTest extends TestCase
         $temporaryFile = tempnam(sys_get_temp_dir(), 'cfg');
         $csr = openssl_csr_new($csrNames, $privateKey);
         $x509 = openssl_csr_sign($csr, $rootCertificate, $rootPrivateKey, 365);
-        return $this->exportToPkcs12($x509, $privateKey, $password);
-    }
-
-    private function exportToPkcs12(\OpenSSLCertificate $certificate, \OpenSSLAsymmetricKey $privateKey, string $password)
-    {
         $certContent = null;
         openssl_pkcs12_export(
-            $certificate,
+            $x509,
             $certContent,
             $privateKey,
             $password,
@@ -67,17 +75,33 @@ class JSignPDFTest extends TestCase
         $this->assertNotNull($fileSigned);
     }
 
-    public function testSignUsingPasswordWithQuote()
+    /**
+     * @dataProvider providerSignUsingDifferentPasswords
+     */
+    public function testSignUsingDifferentPasswords(string $password)
     {
+        global $mockExec;
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
             $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
         }
         $params = JSignParamBuilder::instance()->withDefault();
-        $password = "with ' quote";
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
+        $mockExec = 'Finished: Signature succesfully created.';
+        $path = $params->getTempPdfSignedPath();
+        file_put_contents($path, 'dummy');
         $fileSigned = $this->service->sign($params);
         $this->assertNotNull($fileSigned);
+    }
+
+    public function providerSignUsingDifferentPasswords()
+    {
+        return [
+            ["with ' quote"],
+            ['with ( parentheis )'],
+            ['with $ dollar'],
+            ['with 😃 unicode'],
+        ];
     }
 
     public function testCertificateExpired()
