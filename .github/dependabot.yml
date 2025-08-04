@@ -1,0 +1,7 @@
+version: 2
+updates:
+  # Maintain dependencies for Composer
+  - package-ecosystem: "composer" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
