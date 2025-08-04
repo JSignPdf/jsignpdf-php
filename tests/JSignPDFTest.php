@@ -16,6 +16,7 @@ namespace Jeidison\JSignPDF\Tests;
 use Exception;
 use Jeidison\JSignPDF\Sign\JSignService;
 use Jeidison\JSignPDF\Tests\Builder\JSignParamBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -75,10 +76,8 @@ class JSignPDFTest extends TestCase
         $this->assertNotNull($fileSigned);
     }
 
-    /**
-     * @dataProvider providerSignUsingDifferentPasswords
-     */
-    public function testSignUsingDifferentPasswords(string $password)
+    #[DataProvider('providerSignUsingDifferentPasswords')]
+    public function testSignUsingDifferentPasswords(string $password): void
     {
         global $mockExec;
         if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
@@ -94,7 +93,7 @@ class JSignPDFTest extends TestCase
         $this->assertNotNull($fileSigned);
     }
 
-    public function providerSignUsingDifferentPasswords()
+    public static function providerSignUsingDifferentPasswords(): array
     {
         return [
             ["with ' quote"],
