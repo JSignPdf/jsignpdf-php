@@ -37,6 +37,13 @@
     }
   },
   "scripts": {
+    "post-install-cmd": [
+      "@composer bin all install --ansi",
+      "composer dump-autoload"
+    ],
+    "post-update-cmd": [
+      "composer dump-autoload"
+    ],
     "test:unit": "vendor/bin/phpunit --no-coverage --colors=always --fail-on-warning --fail-on-risky --display-deprecations --display-phpunit-deprecations",
     "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit"
   },
