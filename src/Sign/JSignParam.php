@@ -18,6 +18,9 @@ class JSignParam
     private $tempName;
     private $isOutputTypeBase64 = false;
     private $jSignPdfJarPath;
+    private ?string $javaVersion = null;
+    private ?string $javaDownloadUrl = null;
+    private ?string $jSignPdfDownloadUrl = null;
 
     public function __construct()
     {
@@ -158,4 +161,35 @@ class JSignParam
         return $this->getTempPath() . $this->getTempName('.pfx');
     }
 
+    public function setJavaDownloadUrl(string $url): self
+    {
+        $this->javaDownloadUrl = $url;
+        return $this;
+    }
+
+    public function getJavaDownloadUrl(): ?string
+    {
+        return $this->javaDownloadUrl;
+    }
+
+    public function setJSignPdfDownloadUrl(string $url): self
+    {
+        $this->jSignPdfDownloadUrl = $url;
+        return $this;
+    }
+
+    public function getJSignPdfDownloadUrl(): ?string
+    {
+        return $this->jSignPdfDownloadUrl;
+    }
+
+    public function setJavaVersion(string $javaVersion): self
+    {
+        $this->javaVersion = $javaVersion;
+        return $this;
+    }
+
+    public function getJavaVersion(): ?string {
+        return $this->javaVersion;
+    }
 }

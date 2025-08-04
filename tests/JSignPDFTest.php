@@ -173,6 +173,7 @@ class JSignPDFTest extends TestCase
         $this->expectExceptionMessageMatches('/JSignPDF not found/');
         $params = JSignParamBuilder::instance()->withDefault()->setjSignPdfJarPath('invalid_path');
         $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setIsUseJavaInstalled(true);
         $this->service->getVersion($params);
     }
 
