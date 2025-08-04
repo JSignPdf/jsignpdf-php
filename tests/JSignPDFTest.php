@@ -2,7 +2,7 @@
 
 namespace Jeidison\JSignPDF\Sign;
 
-function exec(string $command, array &$output = null, int &$return_var = null) {
+function exec(string $command, ?array &$output = null, ?int &$return_var = null) {
     global $mockExec;
     if ($mockExec) {
         $output = $mockExec;
