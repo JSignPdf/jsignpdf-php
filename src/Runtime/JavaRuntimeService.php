@@ -30,15 +30,17 @@ class JavaRuntimeService
         }
 
         if ($downloadUrl && $javaPath) {
-            $baseDir = rtrim($javaPath, '/bin/java');
+            $baseDir = preg_replace('/\/bin\/java$/', '', $javaPath);
             if (!is_dir($baseDir)) {
-                throw new InvalidArgumentException('The java base dir is not a real directory: '. $baseDir);
+                throw new InvalidArgumentException('The java base dir is not a real directory. Create this directory first: '. $baseDir);
             }
             try {
                 self::validateVersion($params);
             } catch (RuntimeException) {
                 self::downloadAndExtract($downloadUrl, $javaPath);
             }
+            $params->setJavaDownloadUrl('');
+            $params->setJavaPath($javaPath);
             return $javaPath;
         }
 
@@ -53,7 +55,7 @@ class JavaRuntimeService
         }
         $javaPath = $params->getJavaPath();
         \exec($javaPath . ' -version 2>&1', $javaVersion, $resultCode);
-        if (empty($javaVersion)) {
+        if (count($javaVersion) <= 1) {
             throw new RuntimeException('Failed to execute Java. Sounds that your operational system is blocking the JVM.');
         }
         if ($resultCode !== 0) {
@@ -65,7 +67,7 @@ class JavaRuntimeService
 
     private function downloadAndExtract(string $url, string $baseDir): void
     {
-        $baseDir = rtrim($baseDir, '/bin/java');
+        $baseDir = preg_replace('/\/bin\/java$/', '', $baseDir);
 
         if (!is_dir($baseDir)) {
             $ok = mkdir($baseDir, 0755, true);
@@ -98,6 +100,7 @@ class JavaRuntimeService
 
     private function findRootDir(PharData $phar, $rootDir) {
         $files = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::CHILD_FIRST);
+        $rootDir = realpath($rootDir);
 
         foreach ($files as $file) {
             $pathName = $file->getPathname();

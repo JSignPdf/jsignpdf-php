@@ -5,6 +5,7 @@ namespace Jeidison\JSignPDF\Sign;
 use Exception;
 use Jeidison\JSignPDF\JSignFileService;
 use Jeidison\JSignPDF\Runtime\JavaRuntimeService;
+use Jeidison\JSignPDF\Runtime\JSignPdfRuntimeService;
 use Throwable;
 
 /**
@@ -70,11 +71,8 @@ class JSignService
     public function getVersion(JSignParam $params)
     {
         $java     = $this->javaCommand($params);
+        $jSignPdf = $this->getjSignPdfJarPath($params);
         $jSignPdf = $params->getjSignPdfJarPath();
-        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JSignPdfPathService')) {
-            $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
-        }
-        $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
         $command = "$java -jar $jSignPdf --version 2>&1";
         \exec($command, $output);
@@ -121,10 +119,7 @@ class JSignService
     {
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
-        $jSignPdf = $params->getjSignPdfJarPath();
-        if (!$jSignPdf && class_exists('JSignPDF\JSignPDFBin\JSignPdfPathService')) {
-            $jSignPdf = \JSignPDF\JSignPDFBin\JSignPdfPathService::jSignPdfJarPath();
-        }
+        $jSignPdf = $this->getjSignPdfJarPath($params);
         $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
         $password = escapeshellarg($params->getPassword());
@@ -135,6 +130,12 @@ class JSignService
     {
         $javaRuntimeService = new JavaRuntimeService();
         return $javaRuntimeService->getPath($params);
+    }
+
+    private function getjSignPdfJarPath(JSignParam $params): string
+    {
+        $JsignPdfRuntimeService = new JSignPdfRuntimeService();
+        return $JsignPdfRuntimeService->getPath($params);
     }
 
     private function throwIf($condition, $message)

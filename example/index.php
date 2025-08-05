@@ -27,9 +27,13 @@ openssl_pkcs12_export(
 
 $param = JSignParam::instance();
 
-$param->setJavaVersion('openjdk version "21.0.7" 2025-04-15 LTS');
+$param->setJavaVersion('openjdk version "21.0.8" 2025-07-15 LTS');
 $param->setJavaDownloadUrl('https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz');
-$param->setJavaPath(__DIR__ . '/../tmp/java');
+$param->setJavaPath(__DIR__ . '/../tmp/java/bin/java');
+
+$param->setJsignPdfVersion('asdfasd');
+$param->setJSignPdfDownloadUrl('https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_2_3_0/jsignpdf-2.3.0.zip');
+$param->setjSignPdfJarPath(__DIR__ . '/../tmp/jsignpdf/JSignPdf.jar');
 
 $param->setCertificate($pfxCertificateContent);
 $param->setPdf(file_get_contents(__DIR__ . '/../tests/resources/pdf-test.pdf'));

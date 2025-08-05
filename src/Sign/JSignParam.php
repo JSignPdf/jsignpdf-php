@@ -21,6 +21,7 @@ class JSignParam
     private ?string $javaVersion = null;
     private ?string $javaDownloadUrl = null;
     private ?string $jSignPdfDownloadUrl = null;
+    private ?string $jsignPdfVersion = null;
 
     public function __construct()
     {
@@ -133,6 +134,17 @@ class JSignParam
     public function getjSignPdfJarPath()
     {
         return $this->jSignPdfJarPath;
+    }
+
+    public function setJsignPdfVersion(string $version): self
+    {
+        $this->jsignPdfVersion = $version;
+        return $this;
+    }
+
+    public function getJsignPdfVersion(): ?string
+    {
+        return $this->jsignPdfVersion;
     }
 
     public function isOutputTypeBase64(): bool
