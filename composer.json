@@ -19,12 +19,12 @@
   ],
   "minimum-stability": "stable",
   "require": {
-    "php": "^7.4|^8.0",
+    "php": "^8.1",
     "ext-openssl": "*",
     "ext-json": "*"
   },
   "require-dev": {
-    "phpunit/phpunit": "^9.5"
+    "bamarni/composer-bin-plugin": "^1.8"
   },
   "autoload": {
     "psr-4": {
@@ -37,7 +37,28 @@
     }
   },
   "scripts": {
-    "test:unit": "vendor/bin/phpunit --no-coverage --colors=always --fail-on-warning --fail-on-risky",
+    "post-install-cmd": [
+      "@composer bin all install --ansi",
+      "composer dump-autoload"
+    ],
+    "post-update-cmd": [
+      "composer dump-autoload"
+    ],
+    "test:unit": "vendor/bin/phpunit --no-coverage --colors=always --fail-on-warning --fail-on-risky --display-deprecations --display-phpunit-deprecations",
     "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit"
+  },
+  "extra": {
+    "bamarni-bin": {
+      "bin-links": true,
+      "forward-command": true
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "bamarni/composer-bin-plugin": true
+    },
+    "platform": {
+      "php": "8.1"
+    }
   }
 }
