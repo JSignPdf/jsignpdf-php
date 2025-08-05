@@ -91,7 +91,7 @@ class JavaRuntimeServiceTest extends TestCase
         $jsignParam->setJavaDownloadUrl('https://404.domain');
         $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Failute to download/');
+        $this->expectExceptionMessageMatches('/Failure to download/');
         $service->getPath($jsignParam);
     }
 
@@ -118,32 +118,7 @@ class JavaRuntimeServiceTest extends TestCase
 
         $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/cannot be gzdecoded/');
-        $service->getPath($jsignParam);
-    }
-
-    public function testGetPathWithDownloadUrlWithCorruptFile(): void {
-        mkdir($this->testTmpDir . '/bin', 0755, true);
-        touch($this->testTmpDir . '/bin/java');
-
-        $jsignParam = new JSignParam();
-        $service = new JavaRuntimeService();
-        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
-
-        $server = new MockWebServer();
-        $server->start();
-        $server->setResponseOfPath(
-            '/',
-            new Response(
-                gzencode('invalid tar content'),
-            )
-        );
-        $url = $server->getServerRoot();
-        $jsignParam->setJavaDownloadUrl($url);
-
-        $jsignParam->setJavaVersion('21.0.0');
-        $this->expectException(UnexpectedValueException::class);
-        $this->expectExceptionMessageMatches('/internal corruption/');
+        $this->expectExceptionMessageMatches('/cannot be extracted/');
         $service->getPath($jsignParam);
     }
 
@@ -170,8 +145,8 @@ class JavaRuntimeServiceTest extends TestCase
         $jsignParam->setJavaDownloadUrl($url);
 
         $jsignParam->setJavaVersion('21.0.0');
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/Java binary not found/');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/Invalid tar content/');
         $service->getPath($jsignParam);
     }
 

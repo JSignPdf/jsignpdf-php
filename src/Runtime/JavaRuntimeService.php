@@ -7,7 +7,9 @@ namespace Jeidison\JSignPDF\Runtime;
 use InvalidArgumentException;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use PharData;
+use PharException;
 use RuntimeException;
+use UnexpectedValueException;
 
 class JavaRuntimeService
 {
@@ -74,24 +76,57 @@ class JavaRuntimeService
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
-        $content = @file_get_contents($url);
-        if ($content === false) {
-            throw new InvalidArgumentException("Failute to download file using the url $url, error: " . print_r(error_get_last(), true));
+        $this->chunkDownload($url, $baseDir . '/java.tar.gz');
+        try {
+            $tar = new PharData($baseDir . '/java.tar.gz');
+        } catch (PharException|UnexpectedValueException $e) {
+            throw new InvalidArgumentException('The file ' . $baseDir . '/java.tar.gz cannot be extracted');
         }
-        if (!$content) {
-            throw new InvalidArgumentException('The url returned empty content: ' . $url);
+        $rootDirInsideTar = $this->findRootDir($tar, $baseDir . '/java.tar.gz');
+        if (!$rootDirInsideTar) {
+            throw new InvalidArgumentException('Invalid tar content.');
         }
-        $decompressedContent = @gzdecode($content);
-        if ($decompressedContent === false) {
-            throw new InvalidArgumentException('The file downloaded from follow URL cannot be gzdecoded: ' . $url);
-        }
-        file_put_contents($baseDir . '/java.tar.gz', $decompressedContent);
-        $tar = new PharData($baseDir . '/java.tar.gz');
-        $tar->extractTo($baseDir, null, true);
+        $tar->extractTo(directory: $baseDir, overwrite: true);
+        @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar) . '/* ' . escapeshellarg($baseDir));
+        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
         unlink($baseDir . '/java.tar.gz');
         if (!file_exists($baseDir . '/bin/java')) {
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }
         chmod($baseDir . '/bin/java', 0700);
+    }
+
+    private function findRootDir(PharData $phar, $rootDir) {
+        $files = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::CHILD_FIRST);
+
+        foreach ($files as $file) {
+            $pathName = $file->getPathname();
+            if (str_contains($pathName, '/bin/') || str_contains($pathName, '/bin/')) {
+                $parts = explode($rootDir, $pathName);
+                $internalFullPath = end($parts);
+                $parts = explode('/bin/', $internalFullPath);
+                return trim($parts[0], '/');
+            }
+        }
+    }
+
+    private function chunkDownload(string $url, string $destination): void
+    {
+        $fp = fopen($destination, 'w');
+
+        if ($fp) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FILE, $fp);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            $response = curl_exec($ch);
+            if ($response === false) {
+                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+            }
+            curl_close($ch);
+            fclose($fp);
+        } else {
+            throw new InvalidArgumentException("Failute to download file using the url $url");
+        }
     }
 }
