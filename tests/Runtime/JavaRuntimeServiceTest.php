@@ -18,6 +18,7 @@ class JavaRuntimeServiceTest extends TestCase
     public string $testTmpDir = '';
     protected function setUp(): void {
         $this->testTmpDir = sys_get_temp_dir() . '/jsignpdf_temp_dir_' . uniqid();
+        mkdir(directory: $this->testTmpDir, recursive: true);
     }
 
     public function testGetPathWhenJavaIsInstalled(): void {
