@@ -6,10 +6,7 @@ namespace Jeidison\JSignPDF\Runtime;
 
 use InvalidArgumentException;
 use Jeidison\JSignPDF\Sign\JSignParam;
-use PharData;
-use PharException;
 use RuntimeException;
-use UnexpectedValueException;
 use ZipArchive;
 
 class JSignPdfRuntimeService
@@ -29,9 +26,14 @@ class JSignPdfRuntimeService
         if ($downloadUrl && $jsignPdfPath) {
             $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
             if (!is_dir($baseDir)) {
-                throw new InvalidArgumentException('The JSignPdf base dir is not a real directory: '. $baseDir);
+                $ok = mkdir($baseDir, 0755, true);
+                if ($ok === false) {
+                    throw new InvalidArgumentException('The JSignPdf base dir cannot be created: '. $baseDir);
+                }
             }
-            self::downloadAndExtract($params);
+            if (!file_exists($jsignPdfPath)) {
+                self::downloadAndExtract($params);
+            }
             return $jsignPdfPath;
         }
 

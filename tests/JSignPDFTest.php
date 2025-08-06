@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  */
 class JSignPDFTest extends TestCase
 {
-    private $service;
+    private JSignService $service;
 
     protected function setUp(): void
     {
@@ -171,7 +171,9 @@ class JSignPDFTest extends TestCase
     public function testJSignPDFNotFound()
     {
         $this->expectExceptionMessageMatches('/JSignPDF not found/');
-        $params = JSignParamBuilder::instance()->withDefault()->setjSignPdfJarPath('invalid_path');
+        $params = JSignParamBuilder::instance()->withDefault();
+        $params->setJSignPdfDownloadUrl('');
+        $params->setjSignPdfJarPath('invalid_path');
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setIsUseJavaInstalled(true);
         $this->service->getVersion($params);

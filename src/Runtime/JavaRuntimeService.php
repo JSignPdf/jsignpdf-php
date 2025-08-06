@@ -32,7 +32,10 @@ class JavaRuntimeService
         if ($downloadUrl && $javaPath) {
             $baseDir = preg_replace('/\/bin\/java$/', '', $javaPath);
             if (!is_dir($baseDir)) {
-                throw new InvalidArgumentException('The java base dir is not a real directory. Create this directory first: '. $baseDir);
+                $ok = mkdir($baseDir, 0755, true);
+                if ($ok === false) {
+                    throw new InvalidArgumentException('The java base dir is not a real directory. Create this directory first: '. $baseDir);
+                }
             }
             try {
                 self::validateVersion($params);
