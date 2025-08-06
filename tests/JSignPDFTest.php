@@ -34,7 +34,7 @@ class JSignPDFTest extends TestCase
         $this->service = new JSignService();
     }
 
-    private function getNewCert($password)
+    private function getNewCert($password, $expireDays = 365)
     {
         $privateKey = openssl_pkey_new([
             'private_key_bits' => 2048,
@@ -44,7 +44,7 @@ class JSignPDFTest extends TestCase
         $csrNames = ['commonName' => 'Jhon Doe'];
 
         $csr = openssl_csr_new($csrNames, $privateKey, ['digest_alg' => 'sha256']);
-        $x509 = openssl_csr_sign($csr, null, $privateKey, 365);
+        $x509 = openssl_csr_sign($csr, null, $privateKey, $expireDays);
 
         openssl_pkcs12_export(
             $x509,
