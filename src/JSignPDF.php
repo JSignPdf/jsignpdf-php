@@ -13,13 +13,13 @@ class JSignPDF
     private $service;
     private $param;
 
-    public function __construct(JSignParam $param = null)
+    public function __construct(?JSignParam $param = null)
     {
         $this->service = new JSignService();
         $this->param   = $param;
     }
 
-    public static function instance(JSignParam $param = null)
+    public static function instance(?JSignParam $param = null)
     {
         return new self($param);
     }
