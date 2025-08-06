@@ -72,12 +72,13 @@ class JSignPDFTest extends TestCase
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = JSignParamBuilder::instance()->withDefault();
         vfsStream::setup('download');
-        mkdir('vfs://download/bin');
-        touch('vfs://download/bin/java');
-        chmod('vfs://download/bin/java', 0755);
-        $params->setJavaPath('vfs://download/bin/java');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
-        $params->setjSignPdfJarPath('faje_path');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
