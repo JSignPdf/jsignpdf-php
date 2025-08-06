@@ -141,13 +141,25 @@ class JSignPDFTest extends TestCase
 
     public function testWithWhenResponseIsBase64()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
-        $params = JSignParamBuilder::instance()->withDefault()->setIsOutputTypeBase64(true);
-        $params->setCertificate($this->getNewCert($params->getPassword()));
-        $fileSigned = $this->service->sign($params);
-        $this->assertTrue(base64_decode($fileSigned, true) == true);
+        global $mockExec;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        $params->setJSignPdfDownloadUrl('');
+        $params->setCertificate($this->getNewCert('123'));
+        $params->setPassword('123');
+        $signedFilePath = $params->getTempPdfSignedPath();
+        file_put_contents($signedFilePath, 'signed file content');
+        $params->setIsOutputTypeBase64(true);
+        $signedContent = $this->service->sign($params);
+        $this->assertEquals(base64_encode('signed file content'), $signedContent);
     }
 
     public function testSignWhenCertificateIsNull()
