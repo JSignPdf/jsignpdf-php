@@ -120,7 +120,6 @@ class JSignService
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
         $jSignPdf = $this->getjSignPdfJarPath($params);
-        $this->throwIf(!file_exists($jSignPdf), 'Jar of JSignPDF not found on path: '. $jSignPdf);
 
         $password = escapeshellarg($params->getPassword());
         return "$java -Duser.language=en -jar $jSignPdf $pdf -ksf $certificate -ksp {$password} {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
