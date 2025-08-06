@@ -10,8 +10,6 @@ use Jeidison\JSignPDF\Runtime\JavaRuntimeService;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use PharData;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
-use UnexpectedValueException;
 
 class JavaRuntimeServiceTest extends TestCase
 {
@@ -32,15 +30,21 @@ class JavaRuntimeServiceTest extends TestCase
     public function testGetPathWithCustomAndValidJavaPath(): void {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
-        $jsignParam->setJavaPath(PHP_BINARY);
+        vfsStream::setup('download');
+        mkdir('vfs://download/bin');
+        touch('vfs://download/bin/java');
+        chmod('vfs://download/bin/java', 0755);
+        $jsignParam->setJavaPath('vfs://download/bin/java');
+        $jsignParam->setJavaDownloadUrl('');
         $path = $service->getPath($jsignParam);
-        $this->assertEquals(PHP_BINARY, $path);
+        $this->assertEquals('vfs://download/bin/java', $path);
     }
 
     public function testGetPathWithCustomAndInvalidJavaPath(): void {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
         $jsignParam->setJavaPath(__FILE__);
+        $jsignParam->setJavaDownloadUrl('');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/not executable/');
         $service->getPath($jsignParam);
@@ -49,7 +53,12 @@ class JavaRuntimeServiceTest extends TestCase
     public function testGetPathWithDownloadUrlAndNotRealDirectory(): void {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
-        $jsignParam->setJavaPath(__FILE__);
+        $root = vfsStream::setup('download');
+        $root->chmod(0770)
+            ->chgrp(vfsStream::GROUP_USER_1)
+            ->chown(vfsStream::OWNER_USER_1);
+        chgrp('vfs://download', 44);
+        $jsignParam->setJavaPath('vfs://download/not_real_directory');
         $jsignParam->setJavaDownloadUrl('https://fake.url');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/not a real directory/');
@@ -59,8 +68,7 @@ class JavaRuntimeServiceTest extends TestCase
     public function testGetPathWithDownloadUrlAndEmptyJavaVersion(): void {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
-        $jsignParam->setJavaPath(realpath(__DIR__ . '/../../tmp/'));
-        $jsignParam->setJavaDownloadUrl('https://fake.url');
+        $jsignParam->setJavaVersion('');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Java version required/');
         $service->getPath($jsignParam);
@@ -157,7 +165,7 @@ class JavaRuntimeServiceTest extends TestCase
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
 
-        $jsignParam->setJavaVersion('21.0.0');
+        $jsignParam->setJavaPath('');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Java not found/');
         $service->getPath($jsignParam);
