@@ -75,7 +75,7 @@ class JSignService
         $jSignPdf = $params->getjSignPdfJarPath();
 
         $command = "$java -jar $jSignPdf --version 2>&1";
-        \exec($command, $output);
+        exec($command, $output);
         $lastRow = end($output);
         if (empty($output) || strpos($lastRow, 'version') === false) {
             return '';

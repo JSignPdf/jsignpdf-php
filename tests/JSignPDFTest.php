@@ -13,6 +13,7 @@ function exec(string $command, ?array &$output = null, ?int &$return_var = null)
 
 namespace Jeidison\JSignPDF\Tests;
 
+use org\bovigo\vfs\vfsStream;
 use Exception;
 use Jeidison\JSignPDF\Sign\JSignService;
 use Jeidison\JSignPDF\Tests\Builder\JSignParamBuilder;
@@ -194,10 +195,18 @@ class JSignPDFTest extends TestCase
 
     public function testGetVersion()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
+        global $mockExec;
+        $mockExec = ['JSignPdf version 2.3.0'];
+
         $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/bin');
+        touch('vfs://download/bin/java');
+        chmod('vfs://download/bin/java', 0755);
+        $params->setJavaPath('vfs://download/bin/java');
+        $params->getJSignPdfDownloadUrl('fake_url');
+        $params->setIsUseJavaInstalled(true);
+        $params->setjSignPdfJarPath('faje_path');
         $version = $this->service->getVersion($params);
         $this->assertNotEmpty($version);
     }
