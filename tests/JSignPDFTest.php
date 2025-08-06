@@ -124,7 +124,7 @@ class JSignPDFTest extends TestCase
         mkdir('vfs://download/jsignpdf', 0755, true);
         $params->setjSignPdfJarPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
-        $params->setCertificate(file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'resources' . DIRECTORY_SEPARATOR . 'certificado.pfx'));
+        $params->setCertificate($this->getNewCert('123', 0));
         $params->setPassword('123');
         $signedFilePath = $params->getTempPdfSignedPath();
         file_put_contents($signedFilePath, 'signed file content');
