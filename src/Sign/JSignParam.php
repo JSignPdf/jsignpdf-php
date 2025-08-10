@@ -18,10 +18,8 @@ class JSignParam
     private $tempName;
     private $isOutputTypeBase64 = false;
     private string $jSignPdfJarPath;
-    private string $javaVersion = 'openjdk version "21.0.8" 2025-07-15 LTS';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
     private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_2_3_0/jsignpdf-2.3.0.zip';
-    private ?string $jsignPdfVersion = null;
 
     public function __construct()
     {
@@ -138,17 +136,6 @@ class JSignParam
         return $this->jSignPdfJarPath;
     }
 
-    public function setJsignPdfVersion(string $version): self
-    {
-        $this->jsignPdfVersion = $version;
-        return $this;
-    }
-
-    public function getJsignPdfVersion(): ?string
-    {
-        return $this->jsignPdfVersion;
-    }
-
     public function isOutputTypeBase64(): bool
     {
         return $this->isOutputTypeBase64;
@@ -195,15 +182,5 @@ class JSignParam
     public function getJSignPdfDownloadUrl(): string
     {
         return $this->jSignPdfDownloadUrl;
-    }
-
-    public function setJavaVersion(string $javaVersion): self
-    {
-        $this->javaVersion = $javaVersion;
-        return $this;
-    }
-
-    public function getJavaVersion(): ?string {
-        return $this->javaVersion;
     }
 }

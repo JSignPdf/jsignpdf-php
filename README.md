@@ -42,7 +42,6 @@ With specific Java or JSignPdf version:
 ```php
 $params->getJSignPdfDownloadUrl('the url to download the zip here');
 $params->setJavaDownloadUrl('the url to download the .tar.gz here');
-$params->setJavaVersion('openjdk version "21.0.8" 2025-07-15 LTS')
 ```
 
 Without JSignPDF bin:

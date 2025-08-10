@@ -31,13 +31,20 @@ class JSignPdfRuntimeService
                     throw new InvalidArgumentException('The JSignPdf base dir cannot be created: '. $baseDir);
                 }
             }
-            if (!file_exists($jsignPdfPath)) {
+            if (!file_exists($jsignPdfPath) || !self::validateVersion($params)) {
                 self::downloadAndExtract($params);
             }
             return $jsignPdfPath;
         }
 
         throw new InvalidArgumentException('Java not found.');
+    }
+
+    private function validateVersion(JSignParam $params): bool
+    {
+        $jsignPdfPath = $params->getjSignPdfJarPath();
+        $versionCacheFile = $jsignPdfPath . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
+        return file_exists($versionCacheFile);
     }
 
     private function downloadAndExtract(JSignParam $params): void
@@ -68,10 +75,12 @@ class JSignPdfRuntimeService
         }
         @exec('mv ' . escapeshellarg($baseDir . '/'. $z->getNameIndex(0)) . '/JSignPdf.jar ' . escapeshellarg($baseDir));
         @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $z->getNameIndex(0)));
+        @exec('rm -f ' . escapeshellarg($baseDir) . '/.jsignpdf_version_*');
         unlink($baseDir . '/jsignpdf.zip');
         if (!file_exists($baseDir . '/JSignPdf.jar')) {
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }
+        touch($baseDir . '/.jsignpdf_version_' . basename($url));
     }
 
     private function chunkDownload(string $url, string $destination): void

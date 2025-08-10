@@ -37,9 +37,7 @@ class JavaRuntimeService
                     throw new InvalidArgumentException('The java base dir is not a real directory. Create this directory first: '. $baseDir);
                 }
             }
-            try {
-                self::validateVersion($params);
-            } catch (RuntimeException) {
+            if (!self::validateVersion($params)) {
                 self::downloadAndExtract($downloadUrl, $javaPath);
             }
             $params->setJavaDownloadUrl('');
@@ -52,20 +50,10 @@ class JavaRuntimeService
 
     private function validateVersion(JSignParam $params): bool
     {
-        $version = $params->getJavaVersion();
-        if (!$version) {
-            throw new InvalidArgumentException('Java version required');
-        }
         $javaPath = $params->getJavaPath();
-        \exec($javaPath . ' -version 2>&1', $javaVersion, $resultCode);
-        if (count($javaVersion) <= 1) {
-            throw new RuntimeException('Failed to execute Java. Sounds that your operational system is blocking the JVM.');
-        }
-        if ($resultCode !== 0) {
-            throw new RuntimeException('Failure to check Java version.');
-        }
-        $javaVersion = current($javaVersion);
-        return $javaVersion === $version;
+        $baseDir = preg_replace('/\/bin\/java$/', '', $javaPath);
+        $lastVersion = $baseDir . '/.java_version_' . basename($params->getJavaDownloadUrl());
+        return file_exists($lastVersion);
     }
 
     private function downloadAndExtract(string $url, string $baseDir): void
@@ -94,7 +82,9 @@ class JavaRuntimeService
         $tar->extractTo(directory: $baseDir, overwrite: true);
         @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar) . '/* ' . escapeshellarg($baseDir));
         @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
+        @exec('rm -f ' . escapeshellarg($baseDir) . '/.java_version_*');
         unlink($baseDir . '/java.tar.gz');
+        touch($baseDir . '/.java_version_' . basename($url));
         if (!file_exists($baseDir . '/bin/java')) {
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }

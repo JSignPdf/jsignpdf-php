@@ -65,15 +65,6 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlAndEmptyJavaVersion(): void {
-        $jsignParam = new JSignParam();
-        $service = new JavaRuntimeService();
-        $jsignParam->setJavaVersion('');
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Java version required/');
-        $service->getPath($jsignParam);
-    }
-
     public function testGetPathWithDownloadUrlWithInvalidUrl(): void {
         vfsStream::setup('download');
         mkdir('vfs://download/bin');
@@ -83,7 +74,6 @@ class JavaRuntimeServiceTest extends TestCase
         $service = new JavaRuntimeService();
         $jsignParam->setJavaPath('vfs://download/bin/java');
         $jsignParam->setJavaDownloadUrl('invalid_url');
-        $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/url.*invalid/');
         $service->getPath($jsignParam);
@@ -98,7 +88,6 @@ class JavaRuntimeServiceTest extends TestCase
         $service = new JavaRuntimeService();
         $jsignParam->setJavaPath('vfs://download/bin/java');
         $jsignParam->setJavaDownloadUrl('https://404.domain');
-        $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Failure to download/');
         $service->getPath($jsignParam);
@@ -125,7 +114,6 @@ class JavaRuntimeServiceTest extends TestCase
         $url = $server->getServerRoot();
         $jsignParam->setJavaDownloadUrl($url);
 
-        $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/cannot be extracted/');
         $service->getPath($jsignParam);
@@ -153,10 +141,46 @@ class JavaRuntimeServiceTest extends TestCase
         $url = $server->getServerRoot();
         $jsignParam->setJavaDownloadUrl($url);
 
-        $jsignParam->setJavaVersion('21.0.0');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Invalid tar content/');
         $service->getPath($jsignParam);
+    }
+
+    public function testGetPathWithDownloadUrlWithInvalidVersion(): void {
+        $jsignParam = new JSignParam();
+        $service = new JavaRuntimeService();
+
+        // When the version is invalid, will try to download the package
+        $server = new MockWebServer();
+        $server->start();
+        $server->setResponseOfPath(
+            '/',
+            new Response('invalid response'),
+        );
+        $baseUrl = $server->getServerRoot();
+        $url = $baseUrl . '/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
+        $jsignParam->setJavaDownloadUrl($url);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/cannot be extracted/');
+        $service->getPath($jsignParam);
+    }
+
+    public function testGetPathWithDownloadUrlWithValidVersion(): void {
+        $jsignParam = new JSignParam();
+        $service = new JavaRuntimeService();
+
+        $tarGzFilename = 'OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
+        $url = 'https://fake.url/' . $tarGzFilename;
+        $jsignParam->setJavaDownloadUrl($url);
+
+        // When have a file with an expected name, will consider that the
+        // downloaded java version is right
+        touch($this->testTmpDir . '/.java_version_' . $tarGzFilename);
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+
+        $javaPath = $service->getPath($jsignParam);
+        $this->assertEquals($jsignParam->getJavaPath(), $javaPath);
     }
 
     public function testGetPathWithoutJavaFallback(): void {

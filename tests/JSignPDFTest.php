@@ -218,10 +218,12 @@ class JSignPDFTest extends TestCase
         mkdir('vfs://download/bin');
         touch('vfs://download/bin/java');
         chmod('vfs://download/bin/java', 0755);
+        mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
         $params->setJavaPath('vfs://download/bin/java');
-        $params->getJSignPdfDownloadUrl('fake_url');
+        $params->setJSignPdfDownloadUrl('fake_url');
         $params->setIsUseJavaInstalled(true);
-        $params->setjSignPdfJarPath('faje_path');
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
         $version = $this->service->getVersion($params);
         $this->assertNotEmpty($version);
     }
