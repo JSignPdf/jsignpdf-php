@@ -13,6 +13,7 @@ function exec(string $command, ?array &$output = null, ?int &$return_var = null)
 
 namespace Jeidison\JSignPDF\Tests;
 
+use org\bovigo\vfs\vfsStream;
 use Exception;
 use Jeidison\JSignPDF\Sign\JSignService;
 use Jeidison\JSignPDF\Tests\Builder\JSignParamBuilder;
@@ -24,7 +25,7 @@ use PHPUnit\Framework\TestCase;
  */
 class JSignPDFTest extends TestCase
 {
-    private $service;
+    private JSignService $service;
 
     protected function setUp(): void
     {
@@ -33,7 +34,7 @@ class JSignPDFTest extends TestCase
         $this->service = new JSignService();
     }
 
-    private function getNewCert($password)
+    private function getNewCert($password, $expireDays = 365)
     {
         $privateKey = openssl_pkey_new([
             'private_key_bits' => 2048,
@@ -43,54 +44,61 @@ class JSignPDFTest extends TestCase
         $csrNames = ['commonName' => 'Jhon Doe'];
 
         $csr = openssl_csr_new($csrNames, $privateKey, ['digest_alg' => 'sha256']);
-        $x509 = openssl_csr_sign($csr, null, $privateKey, $days = 365, ['digest_alg' => 'sha256']);
+        $x509 = openssl_csr_sign($csr, null, $privateKey, $expireDays);
 
-        openssl_x509_export($x509, $rootCertificate);
-        openssl_pkey_export($privateKey, $rootPrivateKey);
-
-        $privateKey = openssl_pkey_new([
-            'private_key_bits' => 2048,
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
-        ]);
-        $temporaryFile = tempnam(sys_get_temp_dir(), 'cfg');
-        $csr = openssl_csr_new($csrNames, $privateKey);
-        $x509 = openssl_csr_sign($csr, $rootCertificate, $rootPrivateKey, 365);
-        $certContent = null;
         openssl_pkcs12_export(
             $x509,
-            $certContent,
+            $pfxCertificateContent,
             $privateKey,
             $password,
         );
-        return $certContent;
+        return $pfxCertificateContent;
     }
 
     public function testSignSuccess()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
+        global $mockExec;
+        $mockExec = ['Finished: Signature succesfully created.'];
         $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert($params->getPassword()));
-        $fileSigned = $this->service->sign($params);
-        $this->assertNotNull($fileSigned);
+        $params->setPathPdfSigned('vfs://download/temp');
+        $signedFilePath = $params->getTempPdfSignedPath();
+        file_put_contents($signedFilePath, 'signed file content');
+        $fileSignedContent = $this->service->sign($params);
+        $this->assertEquals('signed file content', $fileSignedContent);
     }
 
     #[DataProvider('providerSignUsingDifferentPasswords')]
     public function testSignUsingDifferentPasswords(string $password): void
     {
         global $mockExec;
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
+        $mockExec = ['Finished: Signature succesfully created.'];
         $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
-        $mockExec = 'Finished: Signature succesfully created.';
-        $path = $params->getTempPdfSignedPath();
-        file_put_contents($path, 'dummy');
-        $fileSigned = $this->service->sign($params);
-        $this->assertNotNull($fileSigned);
+        $params->setPathPdfSigned('vfs://download/temp');
+        $signedFilePath = $params->getTempPdfSignedPath();
+        file_put_contents($signedFilePath, 'signed file content');
+        $fileSignedContent = $this->service->sign($params);
+        $this->assertEquals('signed file content', $fileSignedContent);
     }
 
     public static function providerSignUsingDifferentPasswords(): array
@@ -105,13 +113,22 @@ class JSignPDFTest extends TestCase
 
     public function testCertificateExpired()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
         $this->expectExceptionMessage('Certificate expired.');
         $params = JSignParamBuilder::instance()->withDefault();
-        $fileSigned = $this->service->sign($params);
-        $this->assertNotNull($fileSigned);
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        $params->setJSignPdfDownloadUrl('');
+        $params->setCertificate($this->getNewCert('123', 0));
+        $params->setPassword('123');
+        $signedFilePath = $params->getTempPdfSignedPath();
+        file_put_contents($signedFilePath, 'signed file content');
+        $this->service->sign($params);
     }
 
     public function testSignError()
@@ -124,13 +141,25 @@ class JSignPDFTest extends TestCase
 
     public function testWithWhenResponseIsBase64()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
-        $params = JSignParamBuilder::instance()->withDefault()->setIsOutputTypeBase64(true);
-        $params->setCertificate($this->getNewCert($params->getPassword()));
-        $fileSigned = $this->service->sign($params);
-        $this->assertTrue(base64_decode($fileSigned, true) == true);
+        global $mockExec;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        $params->setJSignPdfDownloadUrl('');
+        $params->setCertificate($this->getNewCert('123'));
+        $params->setPassword('123');
+        $signedFilePath = $params->getTempPdfSignedPath();
+        file_put_contents($signedFilePath, 'signed file content');
+        $params->setIsOutputTypeBase64(true);
+        $signedContent = $this->service->sign($params);
+        $this->assertEquals(base64_encode('signed file content'), $signedContent);
     }
 
     public function testSignWhenCertificateIsNull()
@@ -171,30 +200,30 @@ class JSignPDFTest extends TestCase
     public function testJSignPDFNotFound()
     {
         $this->expectExceptionMessageMatches('/JSignPDF not found/');
-        $params = JSignParamBuilder::instance()->withDefault()->setjSignPdfJarPath('invalid_path');
+        $params = JSignParamBuilder::instance()->withDefault();
+        $params->setJSignPdfDownloadUrl('');
+        $params->setjSignPdfJarPath('invalid_path');
         $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setIsUseJavaInstalled(true);
         $this->service->getVersion($params);
-    }
-
-    public function testSignWhenJavaNotFound()
-    {
-        $javaVersion    = exec("java -version 2>&1");
-        $hasJavaVersion = strpos($javaVersion, 'not found') === false;
-        if ($hasJavaVersion) {
-            $this->markTestSkipped('Java is already installed, impossible to test if it is not installed');
-        }
-        $this->expectExceptionMessage('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
-        $params = JSignParamBuilder::instance()->withDefault()->setIsUseJavaInstalled(true);
-        $params->setCertificate($this->getNewCert($params->getPassword()));
-        $this->service->sign($params);
     }
 
     public function testGetVersion()
     {
-        if (!class_exists('JSignPDF\JSignPDFBin\JavaCommandService')) {
-            $this->markTestSkipped('Install jsignpdf/jsignpdf-bin');
-        }
+        global $mockExec;
+        $mockExec = ['JSignPdf version 2.3.0'];
+
         $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/bin');
+        touch('vfs://download/bin/java');
+        chmod('vfs://download/bin/java', 0755);
+        mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
+        $params->setJavaPath('vfs://download/bin/java');
+        $params->setJSignPdfDownloadUrl('fake_url');
+        $params->setIsUseJavaInstalled(true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
         $version = $this->service->getVersion($params);
         $this->assertNotEmpty($version);
     }

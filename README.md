@@ -38,6 +38,11 @@ With JSignPDF bin:
 ```php
 $param->setjSignPdfJarPath('/path/to/jsignpdf');
 ```
+With specific Java or JSignPdf version:
+```php
+$params->getJSignPdfDownloadUrl('the url to download the zip here');
+$params->setJavaDownloadUrl('the url to download the .tar.gz here');
+```
 
 Without JSignPDF bin:
 ```bash

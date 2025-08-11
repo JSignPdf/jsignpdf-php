@@ -13,16 +13,20 @@ class JSignParam
     private $pathPdfSigned;
     private $JSignParameters = "-a -kst PKCS12";
     private $isUseJavaInstalled = false;
-    private $javaPath = '';
+    private string $javaPath = '';
     private $tempPath;
     private $tempName;
     private $isOutputTypeBase64 = false;
-    private $jSignPdfJarPath;
+    private string $jSignPdfJarPath;
+    private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
+    private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_2_3_0/jsignpdf-2.3.0.zip';
 
     public function __construct()
     {
         $this->tempName = md5(time() . uniqid() . mt_rand());
         $this->tempPath = __DIR__ . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
+        $this->javaPath = $this->tempPath . 'java'  . DIRECTORY_SEPARATOR . 'bin'  . DIRECTORY_SEPARATOR . 'java';
+        $this->jSignPdfJarPath = $this->tempPath . 'jsignpdf'  . DIRECTORY_SEPARATOR . 'JSignPdf.jar';
     }
 
     public static function instance()
@@ -158,4 +162,25 @@ class JSignParam
         return $this->getTempPath() . $this->getTempName('.pfx');
     }
 
+    public function setJavaDownloadUrl(string $url): self
+    {
+        $this->javaDownloadUrl = $url;
+        return $this;
+    }
+
+    public function getJavaDownloadUrl(): string
+    {
+        return $this->javaDownloadUrl;
+    }
+
+    public function setJSignPdfDownloadUrl(string $url): self
+    {
+        $this->jSignPdfDownloadUrl = $url;
+        return $this;
+    }
+
+    public function getJSignPdfDownloadUrl(): string
+    {
+        return $this->jSignPdfDownloadUrl;
+    }
 }
