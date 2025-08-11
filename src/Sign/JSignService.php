@@ -190,6 +190,9 @@ class JSignService
                 REPACK_COMMAND
             );
             $certificateRepacked = file_get_contents($tempEncriptedRepacked);
+            if ($certificateRepacked === false) {
+                return [];
+            }
             $params->setCertificate($certificateRepacked);
             unlink($tempPassword);
             unlink($tempEncriptedOriginal);
