@@ -58,7 +58,7 @@ class JSignService
      * unicode chars. As workaround, I changed the password certificate in
      * memory.
      */
-    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey)
+    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey): void
     {
         if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
             $password = md5(microtime());
@@ -68,7 +68,7 @@ class JSignService
         }
     }
 
-    public function getVersion(JSignParam $params)
+    public function getVersion(JSignParam $params): string
     {
         $java     = $this->javaCommand($params);
         $jSignPdf = $this->getjSignPdfJarPath($params);
@@ -83,7 +83,7 @@ class JSignService
         return explode('version ', $lastRow)[1];
     }
 
-    private function validation(JSignParam $params)
+    private function validation(JSignParam $params): void
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
         $this->throwIf(empty($params->getPdf()), 'PDF is Empty or Invalid.');
@@ -98,7 +98,10 @@ class JSignService
         }
     }
 
-    private function storeTempFiles(JSignParam $params)
+    /**
+     * @psalm-return list{mixed, mixed}
+     */
+    private function storeTempFiles(JSignParam $params): array
     {
         $pdf = $this->fileService->storeFile(
             $params->getTempPath(),
@@ -115,7 +118,7 @@ class JSignService
         return [$pdf, $certificate];
     }
 
-    private function commandSign(JSignParam $params)
+    private function commandSign(JSignParam $params): string
     {
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
@@ -137,15 +140,15 @@ class JSignService
         return $JsignPdfRuntimeService->getPath($params);
     }
 
-    private function throwIf($condition, $message)
+    private function throwIf(bool $condition, string $message): void
     {
         if ($condition)
             throw new Exception($message);
     }
 
-    private function isPasswordCertificateValid(JSignParam $params)
+    private function isPasswordCertificateValid(JSignParam $params): bool
     {
-        return $this->pkcs12Read($params);
+        return $this->pkcs12Read($params) ? true : false;
     }
 
     /**
@@ -161,7 +164,7 @@ class JSignService
      * https://github.com/php/php-src/issues/12128
      * https://www.php.net/manual/en/function.openssl-pkcs12-read.php#128992
      */
-    private function pkcs12Read(JSignParam $params)
+    private function pkcs12Read(JSignParam $params): array
     {
         $certificate = $params->getCertificate();
         $password = $params->getPassword();
@@ -198,7 +201,7 @@ class JSignService
         return [];
     }
 
-    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password)
+    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password): string
     {
         $certContent = null;
         openssl_pkcs12_export(
@@ -210,7 +213,7 @@ class JSignService
         return $certContent;
     }
 
-    private function isExpiredCertificate(JSignParam $params)
+    private function isExpiredCertificate(JSignParam $params): bool
     {
         $certInfo = $this->pkcs12Read($params);
         $certificate = openssl_x509_parse($certInfo['cert']);

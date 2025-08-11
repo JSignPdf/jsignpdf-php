@@ -91,7 +91,7 @@ class JavaRuntimeService
         chmod($baseDir . '/bin/java', 0700);
     }
 
-    private function findRootDir(PharData $phar, $rootDir) {
+    private function findRootDir(PharData $phar, string $rootDir): ?string {
         $files = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::CHILD_FIRST);
         $rootDir = realpath($rootDir);
 
@@ -104,6 +104,7 @@ class JavaRuntimeService
                 return trim($parts[0], '/');
             }
         }
+        return null;
     }
 
     private function chunkDownload(string $url, string $destination): void

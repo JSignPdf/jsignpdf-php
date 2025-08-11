@@ -19,7 +19,7 @@ class JSignPDF
         $this->param   = $param;
     }
 
-    public static function instance(?JSignParam $param = null)
+    public static function instance(?JSignParam $param = null): self
     {
         return new self($param);
     }
@@ -34,7 +34,7 @@ class JSignPDF
         return $this->service->getVersion($this->param);
     }
 
-    public function setParam(JSignParam $param)
+    public function setParam(JSignParam $param): void
     {
         $this->param = $param;
     }
