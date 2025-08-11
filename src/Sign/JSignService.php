@@ -182,6 +182,9 @@ class JSignService
             $tempEncriptedOriginal = tempnam(sys_get_temp_dir(), 'original');
             $tempEncriptedRepacked = tempnam(sys_get_temp_dir(), 'repacked');
             $tempDecrypted = tempnam(sys_get_temp_dir(), 'decripted');
+            if ($tempDecrypted === false || $tempPassword === false || $tempEncriptedOriginal === false || $tempEncriptedRepacked === false) {
+                return [];
+            }
             file_put_contents($tempPassword, $password);
             file_put_contents($tempEncriptedOriginal, $certificate);
             shell_exec(<<<REPACK_COMMAND
