@@ -187,11 +187,7 @@ class JSignService
             }
             file_put_contents($tempPassword, $password);
             file_put_contents($tempEncriptedOriginal, $certificate);
-            shell_exec(<<<REPACK_COMMAND
-                cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
-                cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
-                REPACK_COMMAND
-            );
+            $this->safeShellExec($tempPassword, $tempEncriptedOriginal, $tempDecrypted, $tempEncriptedRepacked);
             $certificateRepacked = file_get_contents($tempEncriptedRepacked);
             if ($certificateRepacked === false) {
                 return [];
@@ -206,6 +202,25 @@ class JSignService
             return $certInfo;
         }
         return [];
+    }
+
+    private function safeShellExec(
+        string $tempPassword,
+        string $tempEncriptedOriginal,
+        string $tempDecrypted,
+        string $tempEncriptedRepacked,
+    ): void
+    {
+        $tempPassword = escapeshellarg($tempPassword);
+        $tempEncriptedOriginal = escapeshellarg($tempEncriptedOriginal);
+        $tempDecrypted = escapeshellarg($tempDecrypted);
+        $tempEncriptedRepacked = escapeshellarg($tempEncriptedRepacked);
+
+        shell_exec(<<<REPACK_COMMAND
+            cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
+            cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
+            REPACK_COMMAND
+        );
     }
 
     private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password): string
