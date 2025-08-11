@@ -2,6 +2,7 @@
 
 namespace Jeidison\JSignPDF\Sign;
 
+use DateTime;
 use Exception;
 use Jeidison\JSignPDF\JSignFileService;
 use Jeidison\JSignPDF\Runtime\JavaRuntimeService;
@@ -217,7 +218,11 @@ class JSignService
     {
         $certInfo = $this->pkcs12Read($params);
         $certificate = openssl_x509_parse($certInfo['cert']);
-        $dateCert    = date_create()->setTimestamp($certificate['validTo_time_t']);
-        return $dateCert <= date_create();
+        if (!is_array($certificate)) {
+            throw new Exception('Invalid certificate');
+        }
+        $currentDate = new DateTime();
+        $dateCert    = (clone $currentDate)->setTimestamp($certificate['validTo_time_t']);
+        return $dateCert <= $currentDate;
     }
 }
