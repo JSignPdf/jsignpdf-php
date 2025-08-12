@@ -59,7 +59,11 @@ class JSignService
      * unicode chars. As workaround, I changed the password certificate in
      * memory.
      */
-    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey): void
+    private function repackCertificateIfPasswordIsUnicode(
+        JSignParam $params,
+        \OpenSSLCertificate|string $cert,
+        \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $pkey,
+    ): void
     {
         if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
             $password = md5(microtime());
