@@ -7,14 +7,14 @@ namespace Jeidison\JSignPDF\Sign;
  */
 class JSignParam
 {
-    private ?string $pdf = null;
-    private ?string $certificate = null;
-    private ?string $password = null;
+    private string $pdf = '';
+    private string $certificate = '';
+    private string $password = '';
     private string $pathPdfSigned = '';
     private string $JSignParameters = "-a -kst PKCS12";
     private bool $isUseJavaInstalled = false;
     private string $javaPath = '';
-    private ?string $tempPath = null;
+    private string $tempPath = '';
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
     private string $jSignPdfJarPath;
@@ -34,7 +34,7 @@ class JSignParam
         return new self();
     }
 
-    public function getPdf(): ?string
+    public function getPdf(): string
     {
         return $this->pdf;
     }
@@ -45,7 +45,7 @@ class JSignParam
         return $this;
     }
 
-    public function getCertificate(): ?string
+    public function getCertificate(): string
     {
         return $this->certificate;
     }
@@ -56,7 +56,7 @@ class JSignParam
         return $this;
     }
 
-    public function getPassword(): ?string
+    public function getPassword(): string
     {
         return $this->password;
     }
@@ -89,7 +89,7 @@ class JSignParam
         return $this;
     }
 
-    public function getTempPath(): ?string
+    public function getTempPath(): string
     {
         return $this->tempPath;
     }

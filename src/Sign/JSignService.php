@@ -167,8 +167,8 @@ class JSignService
      */
     private function pkcs12Read(JSignParam $params): array
     {
-        $certificate = (string) $params->getCertificate();
-        $password = (string) $params->getPassword();
+        $certificate = $params->getCertificate();
+        $password = $params->getPassword();
         if (openssl_pkcs12_read($certificate, $certInfo, $password)) {
             $this->repackCertificateIfPasswordIsUnicode($params, $certInfo['cert'], $certInfo['pkey']);
             return $certInfo;
