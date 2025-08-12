@@ -21,7 +21,7 @@ class JSignService
         $this->fileService = JSignFileService::instance();
     }
 
-    public function sign(JSignParam $params)
+    public function sign(JSignParam $params): string
     {
         try {
             $this->validation($params);
