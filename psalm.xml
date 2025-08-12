@@ -21,5 +21,9 @@
         <LessSpecificReturnType errorLevel="error"/>
         <LessSpecificImplementedReturnType errorLevel="error"/>
         <MoreSpecificReturnType errorLevel="error"/>
+        <UnusedVariable errorLevel="error"/>
+        <UnusedMethod errorLevel="error"/>
+        <UnusedClass errorLevel="error"/>
+        <RedundantCondition errorLevel="error"/>
     </issueHandlers>
 </psalm>
