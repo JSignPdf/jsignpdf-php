@@ -17,7 +17,7 @@ class JSignParam
     private string $tempPath = '';
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
-    private string $jSignPdfJarPath;
+    private string $jSignPdfJarPath = '';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
     private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_2_3_0/jsignpdf-2.3.0.zip';
 
@@ -39,7 +39,7 @@ class JSignParam
         return $this->pdf;
     }
 
-    public function setPdf(?string $pdf): self
+    public function setPdf(string $pdf): self
     {
         $this->pdf = $pdf;
         return $this;
@@ -50,7 +50,7 @@ class JSignParam
         return $this->certificate;
     }
 
-    public function setCertificate(?string $certificate): self
+    public function setCertificate(string $certificate): self
     {
         $this->certificate = $certificate;
         return $this;
@@ -61,7 +61,7 @@ class JSignParam
         return $this->password;
     }
 
-    public function setPassword(?string $password): self
+    public function setPassword(string $password): self
     {
         $this->password = $password;
         return $this;
@@ -72,7 +72,7 @@ class JSignParam
         return $this->pathPdfSigned != null ? $this->pathPdfSigned : $this->getTempPath();
     }
 
-    public function setPathPdfSigned($pathPdfSigned): self
+    public function setPathPdfSigned(string $pathPdfSigned): self
     {
         $this->pathPdfSigned = $pathPdfSigned;
         return $this;
@@ -94,7 +94,7 @@ class JSignParam
         return $this->tempPath;
     }
 
-    public function setTempPath(?string $tempPath): self
+    public function setTempPath(string $tempPath): self
     {
         $this->tempPath = $tempPath;
         return $this;
@@ -125,7 +125,7 @@ class JSignParam
         return $this->javaPath;
     }
 
-    public function setjSignPdfJarPath($jSignPdfJarPath): self
+    public function setjSignPdfJarPath(string $jSignPdfJarPath): self
     {
         $this->jSignPdfJarPath = $jSignPdfJarPath;
         return $this;
