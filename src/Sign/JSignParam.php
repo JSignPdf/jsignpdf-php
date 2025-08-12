@@ -116,12 +116,14 @@ class JSignParam
         return $this;
     }
 
-    public function setJavaPath(string $javaPath): self {
+    public function setJavaPath(string $javaPath): self
+    {
         $this->javaPath = $javaPath;
         return $this;
     }
 
-    public function getJavaPath(): string {
+    public function getJavaPath(): string
+    {
         return $this->javaPath;
     }
 

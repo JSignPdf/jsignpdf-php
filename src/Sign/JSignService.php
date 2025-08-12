@@ -50,8 +50,9 @@ class JSignService
 
             return $fileSigned;
         } catch (Throwable $e) {
-            if ($params->getTempPath())
+            if ($params->getTempPath()) {
                 $this->fileService->deleteTempFiles($params->getTempPath(), $params->getTempName());
+            }
 
             throw new Exception($e->getMessage());
         }
@@ -66,8 +67,7 @@ class JSignService
         JSignParam $params,
         \OpenSSLCertificate|string $cert,
         \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $pkey,
-    ): void
-    {
+    ): void {
         $detectedEncodingString = mb_detect_encoding($params->getPassword(), 'ASCII', true);
         if ($detectedEncodingString === false) {
             $password = md5(microtime());
@@ -132,7 +132,7 @@ class JSignService
 
     private function commandSign(JSignParam $params): string
     {
-        list ($pdf, $certificate) = $this->storeTempFiles($params);
+        list($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
         $jSignPdf = $this->getjSignPdfJarPath($params);
 
@@ -154,8 +154,9 @@ class JSignService
 
     private function throwIf(bool $condition, string $message): void
     {
-        if ($condition)
+        if ($condition) {
             throw new Exception($message);
+        }
     }
 
     private function isPasswordCertificateValid(JSignParam $params): bool
@@ -221,14 +222,14 @@ class JSignService
         string $tempEncriptedOriginal,
         string $tempDecrypted,
         string $tempEncriptedRepacked,
-    ): void
-    {
+    ): void {
         $tempPassword = escapeshellarg($tempPassword);
         $tempEncriptedOriginal = escapeshellarg($tempEncriptedOriginal);
         $tempDecrypted = escapeshellarg($tempDecrypted);
         $tempEncriptedRepacked = escapeshellarg($tempEncriptedRepacked);
 
-        exec(<<<REPACK_COMMAND
+        exec(
+            <<<REPACK_COMMAND
             cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
             cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
             REPACK_COMMAND
