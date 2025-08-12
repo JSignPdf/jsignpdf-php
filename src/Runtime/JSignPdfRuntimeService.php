@@ -25,6 +25,9 @@ class JSignPdfRuntimeService
 
         if ($downloadUrl && $jsignPdfPath) {
             $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
+            if (!is_string($baseDir)) {
+                throw new InvalidArgumentException('Invalid JsignParamPath');
+            }
             if (!is_dir($baseDir)) {
                 $ok = mkdir($baseDir, 0755, true);
                 if ($ok === false) {
@@ -53,7 +56,9 @@ class JSignPdfRuntimeService
         $url = $params->getJSignPdfDownloadUrl();
 
         $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
-
+        if (!is_string($baseDir)) {
+            throw new InvalidArgumentException('Invalid JsignParamPath');
+        }
         if (!is_dir($baseDir)) {
             $ok = mkdir($baseDir, 0755, true);
             if (!$ok) {
@@ -89,6 +94,9 @@ class JSignPdfRuntimeService
 
         if ($fp) {
             $ch = curl_init($url);
+            if ($ch === false) {
+                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+            }
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FILE, $fp);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);

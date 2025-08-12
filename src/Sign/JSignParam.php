@@ -100,7 +100,7 @@ class JSignParam
         return $this;
     }
 
-    public function getTempName(string|null $extension = null): string
+    public function getTempName(string $extension = ''): string
     {
         return $this->tempName.$extension;
     }

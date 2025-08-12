@@ -13,7 +13,7 @@ class JSignFileService
         return new self();
     }
 
-    public function contentFile($path, $isInBase64 = false): string
+    public function contentFile(string $path, bool $isInBase64 = false): string
     {
         $content = file_get_contents($path);
         if ($content === false) {
@@ -22,7 +22,7 @@ class JSignFileService
         return $isInBase64 ? base64_encode($content) : $content;
     }
 
-    public function storeFile($path, $name, $content): string
+    public function storeFile(string $path, string $name, string $content): string
     {
         $filename = $path . $name;
         file_put_contents($filename, $content);

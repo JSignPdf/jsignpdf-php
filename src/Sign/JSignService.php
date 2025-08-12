@@ -14,7 +14,7 @@ use Throwable;
  */
 class JSignService
 {
-    private $fileService;
+    private JSignFileService $fileService;
 
     public function __construct()
     {
@@ -68,7 +68,8 @@ class JSignService
         \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $pkey,
     ): void
     {
-        if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
+        $detectedEncodingString = mb_detect_encoding($params->getPassword(), 'ASCII', true);
+        if ($detectedEncodingString === false) {
             $password = md5(microtime());
             $newCert = $this->exportToPkcs12($cert, $pkey, $password);
             $params->setPassword($password);
@@ -101,6 +102,9 @@ class JSignService
         $this->throwIf($this->isExpiredCertificate($params), 'Certificate expired.');
         if ($params->isUseJavaInstalled()) {
             $javaVersion    = exec("java -version 2>&1");
+            if ($javaVersion === false) {
+                throw new Exception('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
+            }
             $hasJavaVersion = strpos($javaVersion, 'not found') === false;
             $this->throwIf(!$hasJavaVersion, 'Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         }
@@ -182,8 +186,8 @@ class JSignService
         }
         $msg = openssl_error_string();
         if ($msg === 'error:0308010C:digital envelope routines::unsupported') {
-            $opensslVersion = shell_exec('openssl version');
-            if (empty($opensslVersion)) {
+            $opensslVersion = exec('openssl version');
+            if ($opensslVersion === false) {
                 return [];
             }
             $tempPassword = tempnam(sys_get_temp_dir(), 'pfx');
@@ -195,7 +199,7 @@ class JSignService
             }
             file_put_contents($tempPassword, $password);
             file_put_contents($tempEncriptedOriginal, $certificate);
-            $this->safeShellExec($tempPassword, $tempEncriptedOriginal, $tempDecrypted, $tempEncriptedRepacked);
+            $this->safeExec($tempPassword, $tempEncriptedOriginal, $tempDecrypted, $tempEncriptedRepacked);
             $certificateRepacked = file_get_contents($tempEncriptedRepacked);
             if ($certificateRepacked === false) {
                 return [];
@@ -212,7 +216,7 @@ class JSignService
         return [];
     }
 
-    private function safeShellExec(
+    private function safeExec(
         string $tempPassword,
         string $tempEncriptedOriginal,
         string $tempDecrypted,
@@ -224,7 +228,7 @@ class JSignService
         $tempDecrypted = escapeshellarg($tempDecrypted);
         $tempEncriptedRepacked = escapeshellarg($tempEncriptedRepacked);
 
-        shell_exec(<<<REPACK_COMMAND
+        exec(<<<REPACK_COMMAND
             cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
             cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
             REPACK_COMMAND
