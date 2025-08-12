@@ -31,6 +31,9 @@ class JavaRuntimeService
 
         if ($downloadUrl && $javaPath) {
             $baseDir = preg_replace('/\/bin\/java$/', '', $javaPath);
+            if (!is_string($baseDir)) {
+                throw new InvalidArgumentException('Invalid JsignParamPath');
+            }
             if (!is_dir($baseDir)) {
                 $ok = mkdir($baseDir, 0755, true);
                 if ($ok === false) {
@@ -52,6 +55,9 @@ class JavaRuntimeService
     {
         $javaPath = $params->getJavaPath();
         $baseDir = preg_replace('/\/bin\/java$/', '', $javaPath);
+        if (!is_string($baseDir)) {
+            throw new InvalidArgumentException('Invalid JsignParamPath');
+        }
         $lastVersion = $baseDir . '/.java_version_' . basename($params->getJavaDownloadUrl());
         return file_exists($lastVersion);
     }
@@ -59,6 +65,9 @@ class JavaRuntimeService
     private function downloadAndExtract(string $url, string $baseDir): void
     {
         $baseDir = preg_replace('/\/bin\/java$/', '', $baseDir);
+        if (!is_string($baseDir)) {
+            throw new InvalidArgumentException('Invalid JsignParamPath');
+        }
 
         if (!is_dir($baseDir)) {
             $ok = mkdir($baseDir, 0755, true);
@@ -76,7 +85,7 @@ class JavaRuntimeService
             throw new InvalidArgumentException('The file ' . $baseDir . '/java.tar.gz cannot be extracted');
         }
         $rootDirInsideTar = $this->findRootDir($tar, $baseDir . '/java.tar.gz');
-        if (!$rootDirInsideTar) {
+        if (empty($rootDirInsideTar)) {
             throw new InvalidArgumentException('Invalid tar content.');
         }
         $tar->extractTo(directory: $baseDir, overwrite: true);
@@ -91,9 +100,12 @@ class JavaRuntimeService
         chmod($baseDir . '/bin/java', 0700);
     }
 
-    private function findRootDir(PharData $phar, $rootDir) {
+    private function findRootDir(PharData $phar, string $rootDir): string {
         $files = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::CHILD_FIRST);
         $rootDir = realpath($rootDir);
+        if (!is_string($rootDir) || empty($rootDir)) {
+            throw new InvalidArgumentException('Invalid tar content.');
+        }
 
         foreach ($files as $file) {
             $pathName = $file->getPathname();
@@ -104,6 +116,7 @@ class JavaRuntimeService
                 return trim($parts[0], '/');
             }
         }
+        return '';
     }
 
     private function chunkDownload(string $url, string $destination): void
@@ -112,6 +125,9 @@ class JavaRuntimeService
 
         if ($fp) {
             $ch = curl_init($url);
+            if ($ch === false) {
+                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+            }
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FILE, $fp);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);

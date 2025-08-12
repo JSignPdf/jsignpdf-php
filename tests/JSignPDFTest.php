@@ -162,31 +162,31 @@ class JSignPDFTest extends TestCase
         $this->assertEquals(base64_encode('signed file content'), $signedContent);
     }
 
-    public function testSignWhenCertificateIsNull()
+    public function testSignWhenCertificateIsEmpty()
     {
         $this->expectExceptionMessage('Certificate is Empty or Invalid.');
-        $params = JSignParamBuilder::instance()->withDefault()->setCertificate(null);
+        $params = JSignParamBuilder::instance()->withDefault()->setCertificate('');
         $this->service->sign($params);
     }
 
-    public function testSignWhenPdfIsNull()
+    public function testSignWhenPdfIsEmpty()
     {
         $this->expectExceptionMessage('PDF is Empty or Invalid.');
-        $params = JSignParamBuilder::instance()->withDefault()->setPdf(null);
+        $params = JSignParamBuilder::instance()->withDefault()->setPdf('');
         $this->service->sign($params);
     }
 
-    public function testSignWhenPasswordIsNull()
+    public function testSignWhenPasswordIsEmpty()
     {
         $this->expectExceptionMessage('Certificate Password is Empty.');
-        $params = JSignParamBuilder::instance()->withDefault()->setPassword(null);
+        $params = JSignParamBuilder::instance()->withDefault()->setPassword('');
         $this->service->sign($params);
     }
 
     public function testSignWhenTempPathIsInvalid()
     {
         $this->expectExceptionMessage('Temp Path is invalid or has not permission to writable.');
-        $params = JSignParamBuilder::instance()->withDefault()->setTempPath(null);
+        $params = JSignParamBuilder::instance()->withDefault()->setTempPath('');
         $this->service->sign($params);
     }
 

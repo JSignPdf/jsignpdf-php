@@ -2,6 +2,7 @@
 
 namespace Jeidison\JSignPDF\Sign;
 
+use DateTime;
 use Exception;
 use Jeidison\JSignPDF\JSignFileService;
 use Jeidison\JSignPDF\Runtime\JavaRuntimeService;
@@ -13,14 +14,14 @@ use Throwable;
  */
 class JSignService
 {
-    private $fileService;
+    private JSignFileService $fileService;
 
     public function __construct()
     {
         $this->fileService = JSignFileService::instance();
     }
 
-    public function sign(JSignParam $params)
+    public function sign(JSignParam $params): string
     {
         try {
             $this->validation($params);
@@ -29,6 +30,9 @@ class JSignService
             exec($commandSign, $output);
 
             $out            = json_encode($output);
+            if ($out === false) {
+                throw new Exception('Error to sign PDF.');
+            }
             $messageSuccess = "Finished: Signature succesfully created.";
             $isSigned       = strpos($out, $messageSuccess) !== false;
 
@@ -58,9 +62,14 @@ class JSignService
      * unicode chars. As workaround, I changed the password certificate in
      * memory.
      */
-    private function repackCertificateIfPasswordIsUnicode(JSignParam $params, $cert, $pkey)
+    private function repackCertificateIfPasswordIsUnicode(
+        JSignParam $params,
+        \OpenSSLCertificate|string $cert,
+        \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $pkey,
+    ): void
     {
-        if (!mb_detect_encoding($params->getPassword(), 'ASCII', true)) {
+        $detectedEncodingString = mb_detect_encoding($params->getPassword(), 'ASCII', true);
+        if ($detectedEncodingString === false) {
             $password = md5(microtime());
             $newCert = $this->exportToPkcs12($cert, $pkey, $password);
             $params->setPassword($password);
@@ -68,7 +77,7 @@ class JSignService
         }
     }
 
-    public function getVersion(JSignParam $params)
+    public function getVersion(JSignParam $params): string
     {
         $java     = $this->javaCommand($params);
         $jSignPdf = $this->getjSignPdfJarPath($params);
@@ -83,7 +92,7 @@ class JSignService
         return explode('version ', $lastRow)[1];
     }
 
-    private function validation(JSignParam $params)
+    private function validation(JSignParam $params): void
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
         $this->throwIf(empty($params->getPdf()), 'PDF is Empty or Invalid.');
@@ -93,12 +102,18 @@ class JSignService
         $this->throwIf($this->isExpiredCertificate($params), 'Certificate expired.');
         if ($params->isUseJavaInstalled()) {
             $javaVersion    = exec("java -version 2>&1");
+            if ($javaVersion === false) {
+                throw new Exception('Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
+            }
             $hasJavaVersion = strpos($javaVersion, 'not found') === false;
             $this->throwIf(!$hasJavaVersion, 'Java not installed, set the flag "isUseJavaInstalled" as false or install java.');
         }
     }
 
-    private function storeTempFiles(JSignParam $params)
+    /**
+     * @psalm-return list{mixed, mixed}
+     */
+    private function storeTempFiles(JSignParam $params): array
     {
         $pdf = $this->fileService->storeFile(
             $params->getTempPath(),
@@ -115,7 +130,7 @@ class JSignService
         return [$pdf, $certificate];
     }
 
-    private function commandSign(JSignParam $params)
+    private function commandSign(JSignParam $params): string
     {
         list ($pdf, $certificate) = $this->storeTempFiles($params);
         $java     = $this->javaCommand($params);
@@ -137,15 +152,15 @@ class JSignService
         return $JsignPdfRuntimeService->getPath($params);
     }
 
-    private function throwIf($condition, $message)
+    private function throwIf(bool $condition, string $message): void
     {
         if ($condition)
             throw new Exception($message);
     }
 
-    private function isPasswordCertificateValid(JSignParam $params)
+    private function isPasswordCertificateValid(JSignParam $params): bool
     {
-        return $this->pkcs12Read($params);
+        return $this->pkcs12Read($params) ? true : false;
     }
 
     /**
@@ -161,7 +176,7 @@ class JSignService
      * https://github.com/php/php-src/issues/12128
      * https://www.php.net/manual/en/function.openssl-pkcs12-read.php#128992
      */
-    private function pkcs12Read(JSignParam $params)
+    private function pkcs12Read(JSignParam $params): array
     {
         $certificate = $params->getCertificate();
         $password = $params->getPassword();
@@ -171,21 +186,24 @@ class JSignService
         }
         $msg = openssl_error_string();
         if ($msg === 'error:0308010C:digital envelope routines::unsupported') {
-            if (!shell_exec('openssl version')) {
+            $opensslVersion = exec('openssl version');
+            if ($opensslVersion === false) {
                 return [];
             }
             $tempPassword = tempnam(sys_get_temp_dir(), 'pfx');
             $tempEncriptedOriginal = tempnam(sys_get_temp_dir(), 'original');
             $tempEncriptedRepacked = tempnam(sys_get_temp_dir(), 'repacked');
             $tempDecrypted = tempnam(sys_get_temp_dir(), 'decripted');
+            if ($tempDecrypted === false || $tempPassword === false || $tempEncriptedOriginal === false || $tempEncriptedRepacked === false) {
+                return [];
+            }
             file_put_contents($tempPassword, $password);
             file_put_contents($tempEncriptedOriginal, $certificate);
-            shell_exec(<<<REPACK_COMMAND
-                cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
-                cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
-                REPACK_COMMAND
-            );
+            $this->safeExec($tempPassword, $tempEncriptedOriginal, $tempDecrypted, $tempEncriptedRepacked);
             $certificateRepacked = file_get_contents($tempEncriptedRepacked);
+            if ($certificateRepacked === false) {
+                return [];
+            }
             $params->setCertificate($certificateRepacked);
             unlink($tempPassword);
             unlink($tempEncriptedOriginal);
@@ -198,7 +216,26 @@ class JSignService
         return [];
     }
 
-    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password)
+    private function safeExec(
+        string $tempPassword,
+        string $tempEncriptedOriginal,
+        string $tempDecrypted,
+        string $tempEncriptedRepacked,
+    ): void
+    {
+        $tempPassword = escapeshellarg($tempPassword);
+        $tempEncriptedOriginal = escapeshellarg($tempEncriptedOriginal);
+        $tempDecrypted = escapeshellarg($tempDecrypted);
+        $tempEncriptedRepacked = escapeshellarg($tempEncriptedRepacked);
+
+        exec(<<<REPACK_COMMAND
+            cat $tempPassword | openssl pkcs12 -legacy -in $tempEncriptedOriginal -nodes -out $tempDecrypted -passin stdin &&
+            cat $tempPassword | openssl pkcs12 -in $tempDecrypted -export -out $tempEncriptedRepacked -passout stdin
+            REPACK_COMMAND
+        );
+    }
+
+    private function exportToPkcs12(\OpenSSLCertificate|string $certificate, \OpenSSLAsymmetricKey|\OpenSSLCertificate|string $privateKey, string $password): string
     {
         $certContent = null;
         openssl_pkcs12_export(
@@ -210,11 +247,15 @@ class JSignService
         return $certContent;
     }
 
-    private function isExpiredCertificate(JSignParam $params)
+    private function isExpiredCertificate(JSignParam $params): bool
     {
         $certInfo = $this->pkcs12Read($params);
         $certificate = openssl_x509_parse($certInfo['cert']);
-        $dateCert    = date_create()->setTimestamp($certificate['validTo_time_t']);
-        return $dateCert <= date_create();
+        if (!is_array($certificate)) {
+            throw new Exception('Invalid certificate');
+        }
+        $currentDate = new DateTime();
+        $dateCert    = (clone $currentDate)->setTimestamp($certificate['validTo_time_t']);
+        return $dateCert <= $currentDate;
     }
 }

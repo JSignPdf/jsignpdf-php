@@ -37,15 +37,17 @@
     }
   },
   "scripts": {
+    "test:unit": "vendor/bin/phpunit --no-coverage --colors=always --fail-on-warning --fail-on-risky --display-deprecations --display-phpunit-deprecations",
+    "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit",
+		"psalm": "psalm --no-cache --threads=$(nproc)",
+		"psalm:update-baseline": "psalm --threads=$(nproc) --update-baseline --set-baseline=tests/psalm-baseline.xml",
     "post-install-cmd": [
       "@composer bin all install --ansi",
       "composer dump-autoload"
     ],
     "post-update-cmd": [
       "composer dump-autoload"
-    ],
-    "test:unit": "vendor/bin/phpunit --no-coverage --colors=always --fail-on-warning --fail-on-risky --display-deprecations --display-phpunit-deprecations",
-    "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit"
+    ]
   },
   "extra": {
     "bamarni-bin": {

@@ -8,31 +8,34 @@ namespace Jeidison\JSignPDF;
 class JSignFileService
 {
 
-    public static function instance()
+    public static function instance(): self
     {
         return new self();
     }
 
-    public function contentFile($path, $isInBase64 = false)
+    public function contentFile(string $path, bool $isInBase64 = false): string
     {
         $content = file_get_contents($path);
+        if ($content === false) {
+            return '';
+        }
         return $isInBase64 ? base64_encode($content) : $content;
     }
 
-    public function storeFile($path, $name, $content)
+    public function storeFile(string $path, string $name, string $content): string
     {
         $filename = $path . $name;
         file_put_contents($filename, $content);
         return $filename;
     }
 
-    public function deleteFile(string $path)
+    public function deleteFile(string $path): void
     {
         if (is_file($path))
             unlink($path);
     }
 
-    public function deleteTempFiles(string $pathTemp, string $name)
+    public function deleteTempFiles(string $pathTemp, string $name): void
     {
         $pathPfxFile       = "$pathTemp$name.pfx";
         $pathPdfFile       = "$pathTemp$name.pdf";

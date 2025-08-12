@@ -2,6 +2,7 @@
 
 namespace Jeidison\JSignPDF;
 
+use Exception;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use Jeidison\JSignPDF\Sign\JSignService;
 
@@ -10,8 +11,8 @@ use Jeidison\JSignPDF\Sign\JSignService;
  */
 class JSignPDF
 {
-    private $service;
-    private $param;
+    private JSignService $service;
+    private ?JSignParam $param = null;
 
     public function __construct(?JSignParam $param = null)
     {
@@ -19,22 +20,28 @@ class JSignPDF
         $this->param   = $param;
     }
 
-    public static function instance(?JSignParam $param = null)
+    public static function instance(?JSignParam $param = null): self
     {
         return new self($param);
     }
 
-    public function sign()
+    public function sign(): string
     {
+        if (!$this->param instanceof JSignParam) {
+            throw new Exception('Invalid JSignParam instance');
+        }
         return $this->service->sign($this->param);
     }
 
-    public function getVersion()
+    public function getVersion(): string
     {
+        if (!$this->param instanceof JSignParam) {
+            throw new Exception('Invalid JSignParam instance');
+        }
         return $this->service->getVersion($this->param);
     }
 
-    public function setParam(JSignParam $param)
+    public function setParam(JSignParam $param): void
     {
         $this->param = $param;
     }
