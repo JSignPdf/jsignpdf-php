@@ -14,12 +14,14 @@ use PHPUnit\Framework\TestCase;
 class JavaRuntimeServiceTest extends TestCase
 {
     public string $testTmpDir = '';
-    protected function setUp(): void {
+    protected function setUp(): void
+    {
         $this->testTmpDir = sys_get_temp_dir() . '/jsignpdf_temp_dir_' . uniqid();
         mkdir(directory: $this->testTmpDir, recursive: true);
     }
 
-    public function testGetPathWhenJavaIsInstalled(): void {
+    public function testGetPathWhenJavaIsInstalled(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
         $jsignParam->setIsUseJavaInstalled(true);
@@ -27,7 +29,8 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertEquals('java', $path);
     }
 
-    public function testGetPathWithCustomAndValidJavaPath(): void {
+    public function testGetPathWithCustomAndValidJavaPath(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
         vfsStream::setup('download');
@@ -40,7 +43,8 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertEquals('vfs://download/bin/java', $path);
     }
 
-    public function testGetPathWithCustomAndInvalidJavaPath(): void {
+    public function testGetPathWithCustomAndInvalidJavaPath(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
         $jsignParam->setJavaPath(__FILE__);
@@ -50,7 +54,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlAndNotRealDirectory(): void {
+    public function testGetPathWithDownloadUrlAndNotRealDirectory(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
         $root = vfsStream::setup('download');
@@ -65,7 +70,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWithInvalidUrl(): void {
+    public function testGetPathWithDownloadUrlWithInvalidUrl(): void
+    {
         vfsStream::setup('download');
         mkdir('vfs://download/bin');
         touch('vfs://download/bin/java');
@@ -79,7 +85,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWith4xxError(): void {
+    public function testGetPathWithDownloadUrlWith4xxError(): void
+    {
         vfsStream::setup('download');
         mkdir('vfs://download/bin');
         touch('vfs://download/bin/java');
@@ -93,7 +100,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWithInvalidGzipedFile(): void {
+    public function testGetPathWithDownloadUrlWithInvalidGzipedFile(): void
+    {
         vfsStream::setup('download');
         mkdir('vfs://download/bin');
         touch('vfs://download/bin/java');
@@ -119,7 +127,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWithInvalidJavaPackage(): void {
+    public function testGetPathWithDownloadUrlWithInvalidJavaPackage(): void
+    {
         mkdir($this->testTmpDir . '/bin', 0755, true);
 
         $jsignParam = new JSignParam();
@@ -146,7 +155,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWithInvalidVersion(): void {
+    public function testGetPathWithDownloadUrlWithInvalidVersion(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
 
@@ -166,7 +176,8 @@ class JavaRuntimeServiceTest extends TestCase
         $service->getPath($jsignParam);
     }
 
-    public function testGetPathWithDownloadUrlWithValidVersion(): void {
+    public function testGetPathWithDownloadUrlWithValidVersion(): void
+    {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
 
@@ -183,7 +194,8 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertEquals($jsignParam->getJavaPath(), $javaPath);
     }
 
-    public function testGetPathWithoutJavaFallback(): void {
+    public function testGetPathWithoutJavaFallback(): void
+    {
         mkdir($this->testTmpDir . '/bin', 0755, true);
 
         $jsignParam = new JSignParam();

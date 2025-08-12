@@ -7,7 +7,6 @@ namespace Jeidison\JSignPDF;
  */
 class JSignFileService
 {
-
     public static function instance(): self
     {
         return new self();
@@ -31,8 +30,9 @@ class JSignFileService
 
     public function deleteFile(string $path): void
     {
-        if (is_file($path))
+        if (is_file($path)) {
             unlink($path);
+        }
     }
 
     public function deleteTempFiles(string $pathTemp, string $name): void
@@ -41,8 +41,9 @@ class JSignFileService
         $pathPdfFile       = "$pathTemp$name.pdf";
         $pathPdfSignedFile = "{$pathTemp}{$name}_signed.pdf";
         $tempFiles         = [$pathPfxFile, $pathPdfFile, $pathPdfSignedFile];
-        foreach ($tempFiles as $path)
+        foreach ($tempFiles as $path) {
             $this->deleteFile($path);
+        }
     }
 
 }

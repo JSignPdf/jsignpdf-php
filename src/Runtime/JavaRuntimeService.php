@@ -100,7 +100,8 @@ class JavaRuntimeService
         chmod($baseDir . '/bin/java', 0700);
     }
 
-    private function findRootDir(PharData $phar, string $rootDir): string {
+    private function findRootDir(PharData $phar, string $rootDir): string
+    {
         $files = new \RecursiveIteratorIterator($phar, \RecursiveIteratorIterator::CHILD_FIRST);
         $rootDir = realpath($rootDir);
         if (!is_string($rootDir) || empty($rootDir)) {
