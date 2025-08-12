@@ -175,7 +175,8 @@ class JSignService
         }
         $msg = openssl_error_string();
         if ($msg === 'error:0308010C:digital envelope routines::unsupported') {
-            if (!shell_exec('openssl version')) {
+            $opensslVersion = shell_exec('openssl version');
+            if (empty($opensslVersion)) {
                 return [];
             }
             $tempPassword = tempnam(sys_get_temp_dir(), 'pfx');
