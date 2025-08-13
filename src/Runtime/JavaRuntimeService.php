@@ -23,10 +23,7 @@ class JavaRuntimeService
         $downloadUrl = $params->getJavaDownloadUrl();
 
         if ($javaPath && !$downloadUrl) {
-            if (is_file($javaPath) && is_executable($javaPath)) {
-                return $javaPath;
-            }
-            throw new InvalidArgumentException('Java path defined is not executable: ' . $javaPath);
+            return $javaPath;
         }
 
         if ($downloadUrl && $javaPath) {

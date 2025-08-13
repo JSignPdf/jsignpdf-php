@@ -43,15 +43,15 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertEquals('vfs://download/bin/java', $path);
     }
 
-    public function testGetPathWithCustomAndInvalidJavaPath(): void
+    public function testGetPathWithCustomJavaPath(): void
     {
         $jsignParam = new JSignParam();
         $service = new JavaRuntimeService();
-        $jsignParam->setJavaPath(__FILE__);
+        $expectedPath = __FILE__;
+        $jsignParam->setJavaPath($expectedPath);
         $jsignParam->setJavaDownloadUrl('');
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/not executable/');
-        $service->getPath($jsignParam);
+        $actual = $service->getPath($jsignParam);
+        $this->assertEquals($expectedPath, $actual);
     }
 
     public function testGetPathWithDownloadUrlAndNotRealDirectory(): void
