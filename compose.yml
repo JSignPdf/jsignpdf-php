@@ -1,0 +1,9 @@
+services:
+  php:
+    build: .
+    # your own uid:gid, so vendor/ is not written as root (see: id -u; id -g)
+    user: "1000:1000"
+    environment:
+      COMPOSER_HOME: /tmp/composer
+    volumes:
+      - .:/app
