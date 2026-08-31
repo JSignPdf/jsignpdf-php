@@ -88,13 +88,5 @@ To sign a PDF end to end. It downloads the JRE and the JSignPdf jar into `tmp/` 
 docker compose run --rm php php example/index.php
 ```
 
-The cached runtime left in `tmp/` makes `JavaRuntimeServiceTest` fail. Remove the whole directory
-before running the suite again, not only the version marker, otherwise the next download cannot
-overwrite the extracted JRE:
-
-```bash
-rm -rf tmp/java tmp/jsignpdf
-```
-
 ## Credits
 - [Jeidison Farias](https://github.com/jeidison)
