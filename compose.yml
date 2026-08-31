@@ -1,8 +1,8 @@
 services:
   php:
     build: .
-    # your own uid:gid, so vendor/ is not written as root (see: id -u; id -g)
-    user: "1000:1000"
+    # export HOST_UID/HOST_GID if yours are not 1000, so the files it writes are yours (see: id -u; id -g)
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
       COMPOSER_HOME: ${COMPOSER_HOME:-/tmp/composer}
     volumes:

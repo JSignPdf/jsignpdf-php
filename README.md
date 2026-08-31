@@ -66,9 +66,8 @@ $param->setJSignParameters("-a -kst PKCS12 -ts https://freetsa.org/tsr");
 
 ## Docker Environment
 
-The repository ships a minimal Docker setup (`Dockerfile` and `compose.yml`) with PHP 8.4 and the
-extensions the test suite needs. Adjust the `user:` line in `compose.yml` to your own `id -u`/`id -g`
-so the files it writes are not owned by root.
+The repository ships a minimal Docker setup (`Dockerfile` and `compose.yml`) with the extensions
+the test suite needs.
 
 ```bash
 docker compose build
