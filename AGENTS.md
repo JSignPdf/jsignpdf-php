@@ -46,4 +46,4 @@ Everything reaching a shell must go through `escapeshellarg()`. Secrets (certifi
 - Shell calls are covered by declaring an `exec()` function inside the tested namespace, shadowing the global one for that file, driven by a `$mockExec` global set per test (see `tests/JSignPDFTest.php`).
 - `vfsStream` fakes the filesystem (temp paths, unwritable directories, ownership) and `donatj/mock-webserver` fakes the JRE/jar download endpoints.
 - `tests/Builder/JSignParamBuilder::withDefault()` returns a `JSignParam` preloaded with `tests/resources/certificado.pfx` (password `123`) and `tests/resources/pdf-test.pdf`.
-- Psalm's baseline is `tests/psalm-baseline.xml` with `findUnusedBaselineEntry` on — removing an error means the baseline entry must go too.
+- Psalm's baseline is `tests/psalm-baseline.xml` with `findUnusedBaselineEntry` on — removing an error means the baseline entry must go too and is updated by `composer psalm:update-baseline`.
