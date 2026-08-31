@@ -42,6 +42,7 @@ Everything reaching a shell must go through `escapeshellarg()`. Secrets (certifi
 
 ## Testing patterns
 
+- `tests/` mirrors the `src/` tree: `src/Runtime/JavaRuntimeService.php` is covered by `tests/Runtime/JavaRuntimeServiceTest.php`. Keep the same relative path and name test classes `<ClassName>Test`; `tests/Builder/` and `tests/resources/` are support directories outside that mirror.
 - Shell calls are covered by declaring an `exec()` function inside the tested namespace, shadowing the global one for that file, driven by a `$mockExec` global set per test (see `tests/JSignPDFTest.php`).
 - `vfsStream` fakes the filesystem (temp paths, unwritable directories, ownership) and `donatj/mock-webserver` fakes the JRE/jar download endpoints.
 - `tests/Builder/JSignParamBuilder::withDefault()` returns a `JSignParam` preloaded with `tests/resources/certificado.pfx` (password `123`) and `tests/resources/pdf-test.pdf`.
