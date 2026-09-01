@@ -64,6 +64,33 @@ Change parameters of JSignPDF:
 $param->setJSignParameters("-a -kst PKCS12 -ts https://freetsa.org/tsr");
 ```
 
+A string is passed to JSignPdf as written, so it is the one place where the
+content is not escaped for you. Never build one from untrusted input. To let
+the package escape the values, pass a list of options and values instead:
+
+```php
+$param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr']);
+```
+
+## JSignPdf 3.x
+
+This package targets JSignPdf 3.x, which needs a Java 21+ runtime. Two changes
+of JSignPdf 3.1 are worth knowing about:
+
+- the default hash algorithm is now SHA-256, which requires at least a PDF-1.6;
+- the CLI appends the signature by default, and the append mode cannot upgrade
+  the PDF version.
+
+Together they make signing a PDF older than 1.6 fail with the default
+parameters. To sign such a file, either turn off the append mode with
+`--overwrite` or pick an algorithm the PDF version supports:
+
+```php
+$param->setJSignParameters('-kst PKCS12 --overwrite');
+```
+
+The `-a` flag is kept by JSignPdf 3.1 as a no-op.
+
 ## Docker Environment
 
 The repository ships a minimal Docker setup (`Dockerfile` and `compose.yml`) with the extensions
@@ -84,7 +111,7 @@ docker compose run --rm php composer run psalm
 
 ### Usage example
 
-To sign a PDF end to end. It downloads the JRE and the JSignPdf jar into `tmp/` on the first run:
+To sign a PDF end to end. It downloads the JRE and JSignPdf into `tmp/` on the first run:
 
 ```bash
 docker compose run --rm php php example/index.php
