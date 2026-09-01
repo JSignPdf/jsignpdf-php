@@ -126,6 +126,86 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $this->assertFileDoesNotExist($this->testTmpDir . '/install/jsignpdf-3.1.0');
     }
 
+    public function testUpgradeFromADistributionWithFatJarRemovesTheOldJar(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.1.0', [
+            'lib/engine.jar' => 'new jar content',
+            'bin/jsignpdf.sh' => 'launcher',
+        ]);
+        $url = $this->serve($zipPath, 'jsignpdf-3.1.0-minimal.zip');
+        unlink($zipPath);
+
+        mkdir($this->testTmpDir . '/install');
+        file_put_contents($this->testTmpDir . '/install/JSignPdf.jar', 'old fat jar');
+        touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-2.3.0.zip');
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileDoesNotExist($this->testTmpDir . '/install/JSignPdf.jar');
+        $this->assertFileDoesNotExist($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-2.3.0.zip');
+        $this->assertFileExists($this->testTmpDir . '/install/lib/engine.jar');
+        $this->assertFileExists($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.1.0-minimal.zip');
+    }
+
+    public function testUpgradeBetweenDistributionsWithoutFatJarReplacesTheLibDirectory(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/engine-3.2.0.jar' => 'new jar content']);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0-minimal.zip');
+        unlink($zipPath);
+
+        mkdir($this->testTmpDir . '/install/lib', 0755, true);
+        file_put_contents($this->testTmpDir . '/install/lib/engine-3.1.0.jar', 'old jar');
+        touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.1.0-minimal.zip');
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/engine-3.2.0.jar');
+        $this->assertFileDoesNotExist($this->testTmpDir . '/install/lib/engine-3.1.0.jar');
+        $this->assertFileExists($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.2.0-minimal.zip');
+    }
+
+    public function testDownloadAndExtractArchiveWithoutRootDirectoryEntry(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $zip = new ZipArchive();
+        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFromString('jsignpdf-3.1.0/lib/engine.jar', 'jar content');
+        $zip->close();
+        $url = $this->serve($zipPath, 'jsignpdf-3.1.0-minimal.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/engine.jar');
+    }
+
+    public function testStagingDirectoryIsRemovedAfterTheInstall(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.1.0', ['lib/engine.jar' => 'jar content']);
+        $url = $this->serve($zipPath, 'jsignpdf-3.1.0-minimal.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertEmpty(glob($this->testTmpDir . '/install/.jsignpdf_staging_*'));
+        $this->assertFileDoesNotExist($this->testTmpDir . '/install/jsignpdf.zip');
+    }
+
     public function testDownloadIsSkippedWhenTheInstalledVersionMatches(): void
     {
         $jsignParam = new JSignParam();

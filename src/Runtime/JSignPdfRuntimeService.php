@@ -82,22 +82,70 @@ class JSignPdfRuntimeService
         if ($ok !== true) {
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
         }
-        $rootDirInsideZip = $zip->getNameIndex(0);
-        if (!is_string($rootDirInsideZip)) {
-            throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip is empty');
-        }
-        $ok = $zip->extractTo($baseDir);
+        $staging = $baseDir . '/.jsignpdf_staging_' . uniqid();
+        $ok = $zip->extractTo($staging);
+        $zip->close();
         if ($ok !== true) {
+            $this->deletePath($staging);
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
         }
-        @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideZip) . '/* ' . escapeshellarg($baseDir));
-        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideZip));
-        @exec('rm -f ' . escapeshellarg($baseDir) . '/.jsignpdf_version_*');
         unlink($baseDir . '/jsignpdf.zip');
+        try {
+            $this->replaceInstall($this->archiveRoot($staging), $baseDir);
+        } finally {
+            $this->deletePath($staging);
+        }
+        foreach (glob($baseDir . '/.jsignpdf_version_*') ?: [] as $previousVersion) {
+            unlink($previousVersion);
+        }
         if (!self::isInstalled($jsignPdfPath)) {
             throw new RuntimeException('JSignPdf not found at: ' . $baseDir);
         }
         touch($baseDir . '/.jsignpdf_version_' . basename($url));
+    }
+
+    private function archiveRoot(string $staging): string
+    {
+        $entries = array_values(array_diff(scandir($staging) ?: [], ['.', '..']));
+        if (count($entries) === 1 && is_dir($staging . '/' . $entries[0])) {
+            return $staging . '/' . $entries[0];
+        }
+        return $staging;
+    }
+
+    private function replaceInstall(string $source, string $baseDir): void
+    {
+        $this->deletePath($baseDir . '/JSignPdf.jar');
+        foreach (array_diff(scandir($source) ?: [], ['.', '..']) as $entry) {
+            $target = $baseDir . '/' . $entry;
+            $this->deletePath($target);
+            if (!rename($source . '/' . $entry, $target)) {
+                throw new RuntimeException('Failure to install JSignPdf at: ' . $target);
+            }
+        }
+    }
+
+    private function deletePath(string $path): void
+    {
+        if (is_link($path) || is_file($path)) {
+            unlink($path);
+            return;
+        }
+        if (!is_dir($path)) {
+            return;
+        }
+        $contents = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($contents as $item) {
+            if ($item->isDir() && !$item->isLink()) {
+                rmdir($item->getPathname());
+                continue;
+            }
+            unlink($item->getPathname());
+        }
+        rmdir($path);
     }
 
     private function chunkDownload(string $url, string $destination): void
