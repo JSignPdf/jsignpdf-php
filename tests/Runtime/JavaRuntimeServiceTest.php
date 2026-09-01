@@ -170,6 +170,7 @@ class JavaRuntimeServiceTest extends TestCase
         $baseUrl = $server->getServerRoot();
         $url = $baseUrl . '/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
         $jsignParam->setJavaDownloadUrl($url);
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/cannot be extracted/');

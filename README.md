@@ -64,5 +64,31 @@ Change parameters of JSignPDF:
 $param->setJSignParameters("-a -kst PKCS12 -ts https://freetsa.org/tsr");
 ```
 
+## Docker Environment
+
+The repository ships a minimal Docker setup (`Dockerfile` and `compose.yml`) with the extensions
+the test suite needs.
+
+```bash
+docker compose build
+docker compose run --rm php composer install
+```
+
+Checks, the same ones the CI runs:
+
+```bash
+docker compose run --rm php composer run test:unit
+docker compose run --rm php composer run cs:check   # cs:fix to apply the formatting
+docker compose run --rm php composer run psalm
+```
+
+### Usage example
+
+To sign a PDF end to end. It downloads the JRE and the JSignPdf jar into `tmp/` on the first run:
+
+```bash
+docker compose run --rm php php example/index.php
+```
+
 ## Credits
 - [Jeidison Farias](https://github.com/jeidison)
