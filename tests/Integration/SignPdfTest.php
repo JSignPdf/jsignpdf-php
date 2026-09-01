@@ -63,6 +63,16 @@ class SignPdfTest extends TestCase
         $this->assertStringContainsString('/ByteRange', $signed);
     }
 
+    public function testSignWithAnExplicitHashAlgorithm(): void
+    {
+        $params = $this->params();
+        $params->setJSignParameters(['-kst', 'PKCS12', '--overwrite', '-ha', 'SHA512']);
+
+        $signed = JSignPDF::instance($params)->sign();
+
+        $this->assertStringContainsString('/ByteRange', $signed);
+    }
+
     public function testSignAPdfOlderThan16WithTheDefaultParameters(): void
     {
         $this->expectExceptionMessageMatches('/Creating of signature failed/');
