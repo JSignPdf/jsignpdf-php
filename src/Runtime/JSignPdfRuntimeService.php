@@ -77,16 +77,16 @@ class JSignPdfRuntimeService
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
         $this->chunkDownload($url, $baseDir . '/jsignpdf.zip');
-        $z = new ZipArchive();
-        $ok = $z->open($baseDir . '/jsignpdf.zip');
+        $zip = new ZipArchive();
+        $ok = $zip->open($baseDir . '/jsignpdf.zip');
         if ($ok !== true) {
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
         }
-        $rootDirInsideZip = $z->getNameIndex(0);
+        $rootDirInsideZip = $zip->getNameIndex(0);
         if (!is_string($rootDirInsideZip)) {
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip is empty');
         }
-        $ok = $z->extractTo($baseDir);
+        $ok = $zip->extractTo($baseDir);
         if ($ok !== true) {
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
         }
