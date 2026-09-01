@@ -17,24 +17,21 @@ class JSignPdfRuntimeService
         $downloadUrl = $params->getJSignPdfDownloadUrl();
 
         if ($jsignPdfPath && !$downloadUrl) {
-            if (file_exists($jsignPdfPath)) {
+            if (self::isInstalled($jsignPdfPath)) {
                 return $jsignPdfPath;
             }
             throw new InvalidArgumentException('Jar of JSignPDF not found on path: '. $jsignPdfPath);
         }
 
         if ($downloadUrl && $jsignPdfPath) {
-            $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
-            if (!is_string($baseDir)) {
-                throw new InvalidArgumentException('Invalid JsignParamPath');
-            }
+            $baseDir = self::baseDir($jsignPdfPath);
             if (!is_dir($baseDir)) {
                 $ok = mkdir($baseDir, 0755, true);
                 if ($ok === false) {
                     throw new InvalidArgumentException('The JSignPdf base dir cannot be created: '. $baseDir);
                 }
             }
-            if (!file_exists($jsignPdfPath) || !self::validateVersion($params)) {
+            if (!self::isInstalled($jsignPdfPath) || !self::validateVersion($params)) {
                 self::downloadAndExtract($params);
             }
             return $jsignPdfPath;
@@ -43,10 +40,24 @@ class JSignPdfRuntimeService
         throw new InvalidArgumentException('Java not found.');
     }
 
+    public static function baseDir(string $jsignPdfPath): string
+    {
+        $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
+        if (!is_string($baseDir)) {
+            throw new InvalidArgumentException('Invalid JsignParamPath');
+        }
+        return $baseDir;
+    }
+
+    private static function isInstalled(string $jsignPdfPath): bool
+    {
+        return file_exists($jsignPdfPath) || is_dir(self::baseDir($jsignPdfPath) . '/lib');
+    }
+
     private function validateVersion(JSignParam $params): bool
     {
-        $jsignPdfPath = $params->getjSignPdfJarPath();
-        $versionCacheFile = $jsignPdfPath . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
+        $baseDir = self::baseDir($params->getjSignPdfJarPath());
+        $versionCacheFile = $baseDir . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
         return file_exists($versionCacheFile);
     }
 
@@ -55,10 +66,7 @@ class JSignPdfRuntimeService
         $jsignPdfPath = $params->getjSignPdfJarPath();
         $url = $params->getJSignPdfDownloadUrl();
 
-        $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
-        if (!is_string($baseDir)) {
-            throw new InvalidArgumentException('Invalid JsignParamPath');
-        }
+        $baseDir = self::baseDir($jsignPdfPath);
         if (!is_dir($baseDir)) {
             $ok = mkdir($baseDir, 0755, true);
             if (!$ok) {
@@ -74,16 +82,20 @@ class JSignPdfRuntimeService
         if ($ok !== true) {
             throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
         }
-        $ok = $z->extractTo(pathto: $baseDir, files: [$z->getNameIndex(0) . 'JSignPdf.jar']);
-        if ($ok !== true) {
-            throw new InvalidArgumentException('JSignPdf.jar not found inside path: ' . $z->getNameIndex(0) . 'JSignPdf.jar');
+        $rootDirInsideZip = $z->getNameIndex(0);
+        if (!is_string($rootDirInsideZip)) {
+            throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip is empty');
         }
-        @exec('mv ' . escapeshellarg($baseDir . '/'. $z->getNameIndex(0)) . '/JSignPdf.jar ' . escapeshellarg($baseDir));
-        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $z->getNameIndex(0)));
+        $ok = $z->extractTo($baseDir);
+        if ($ok !== true) {
+            throw new InvalidArgumentException('The file ' . $baseDir . '/jsignpdf.zip cannot be extracted');
+        }
+        @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideZip) . '/* ' . escapeshellarg($baseDir));
+        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideZip));
         @exec('rm -f ' . escapeshellarg($baseDir) . '/.jsignpdf_version_*');
         unlink($baseDir . '/jsignpdf.zip');
-        if (!file_exists($baseDir . '/JSignPdf.jar')) {
-            throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
+        if (!self::isInstalled($jsignPdfPath)) {
+            throw new RuntimeException('JSignPdf not found at: ' . $baseDir);
         }
         touch($baseDir . '/.jsignpdf_version_' . basename($url));
     }

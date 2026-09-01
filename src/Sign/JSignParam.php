@@ -19,7 +19,7 @@ class JSignParam
     private bool $isOutputTypeBase64 = false;
     private string $jSignPdfJarPath = '';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
-    private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_2_3_0/jsignpdf-2.3.0.zip';
+    private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_1_0/jsignpdf-3.1.0-minimal.zip';
 
     public function __construct()
     {
@@ -83,8 +83,14 @@ class JSignParam
         return $this->JSignParameters;
     }
 
-    public function setJSignParameters(string $JSignParameters): self
+    /**
+     * @param string|list<string> $JSignParameters
+     */
+    public function setJSignParameters(string|array $JSignParameters): self
     {
+        if (is_array($JSignParameters)) {
+            $JSignParameters = implode(' ', array_map('escapeshellarg', $JSignParameters));
+        }
         $this->JSignParameters = $JSignParameters;
         return $this;
     }

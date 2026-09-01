@@ -12,10 +12,32 @@ function exec(string $command, ?array &$output = null, ?int &$return_var = null)
     return \exec($command, $output, $return_var);
 }
 
+function proc_open(string $command, array $descriptor_spec, ?array &$pipes)
+{
+    global $mockExec, $mockProcCommand, $mockProcStdinFile;
+    if (!$mockExec) {
+        return \proc_open($command, $descriptor_spec, $pipes);
+    }
+    $mockProcCommand = $command;
+    $mockProcStdinFile = tempnam(sys_get_temp_dir(), 'jsignpdf_stdin_');
+    $stdout = fopen('php://memory', 'w+');
+    fwrite($stdout, implode(PHP_EOL, $mockExec));
+    rewind($stdout);
+    $pipes = [fopen($mockProcStdinFile, 'w'), $stdout];
+    return $stdout;
+}
+
+function proc_close($process)
+{
+    global $mockExec;
+    return $mockExec ? 0 : \proc_close($process);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use org\bovigo\vfs\vfsStream;
 use Exception;
+use Jeidison\JSignPDF\Sign\JSignParam;
 use Jeidison\JSignPDF\Sign\JSignService;
 use Jeidison\JSignPDF\Tests\Builder\JSignParamBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -30,9 +52,34 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
-        global $mockExec;
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
         $mockExec = null;
+        $mockProcCommand = null;
+        $mockProcStdinFile = null;
         $this->service = new JSignService();
+    }
+
+    protected function tearDown(): void
+    {
+        global $mockProcStdinFile;
+        if ($mockProcStdinFile && is_file($mockProcStdinFile)) {
+            unlink($mockProcStdinFile);
+        }
+    }
+
+    private function withFakeRuntime(string $jSignPdfPath = 'vfs://download/jsignpdf'): JSignParam
+    {
+        $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/jvava/bin', 0755, true);
+        touch('vfs://download/jvava/bin/java');
+        chmod('vfs://download/jvava/bin/java', 0755);
+        $params->setJavaPath('vfs://download/jvava/bin/java');
+        $params->setJavaDownloadUrl('');
+        mkdir('vfs://download/jsignpdf', 0755, true);
+        $params->setjSignPdfJarPath($jSignPdfPath);
+        $params->setJSignPdfDownloadUrl('');
+        return $params;
     }
 
     private function getNewCert($password, $expireDays = 365)
@@ -227,5 +274,150 @@ class JSignPDFTest extends TestCase
         $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
         $version = $this->service->getVersion($params);
         $this->assertNotEmpty($version);
+    }
+
+    public function testGetVersionOfJSignPdf3(): void
+    {
+        global $mockExec;
+        $mockExec = ['JSignPdf version 3.1.0'];
+
+        $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/bin');
+        touch('vfs://download/bin/java');
+        chmod('vfs://download/bin/java', 0755);
+        mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
+        $params->setJavaPath('vfs://download/bin/java');
+        $params->setJSignPdfDownloadUrl('fake_url');
+        $params->setIsUseJavaInstalled(true);
+        $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
+        $version = $this->service->getVersion($params);
+        $this->assertEquals('3.1.0', $version);
+    }
+
+    public function testSignWhenJSignPdfReportsAFailure(): void
+    {
+        global $mockExec;
+        $mockExec = [
+            'INFO Creating signature',
+            'INFO Finished: Creating of signature failed.',
+        ];
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+
+        $this->expectExceptionMessageMatches('/Creating of signature failed/');
+        $this->service->sign($params);
+    }
+
+    public function testSignSendsThePasswordThroughStdinAndNotThroughArgv(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $password = 'with space $and `backtick` and ; semicolon';
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($password));
+        $params->setPassword($password);
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringNotContainsString($password, $mockProcCommand);
+        $this->assertStringContainsString('--enable-stdin-passwords -ksp -', $mockProcCommand);
+        $this->assertEquals($password . PHP_EOL, file_get_contents($mockProcStdinFile));
+    }
+
+    public function testSignEscapesEveryPathOfTheCommand(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        mkdir("vfs://download/temp dir with 'quote'", 0755, true);
+        $params->setTempPath("vfs://download/temp dir with 'quote'/");
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(escapeshellarg('vfs://download/jvava/bin/java'), $mockProcCommand);
+        $this->assertStringContainsString(escapeshellarg($params->getTempPdfPath()), $mockProcCommand);
+        $this->assertStringContainsString('-ksf ' . escapeshellarg($params->getTempCertificatePath()), $mockProcCommand);
+        $this->assertStringContainsString('-d ' . escapeshellarg($params->getPathPdfSigned()), $mockProcCommand);
+    }
+
+    public function testSignUsesTheFatJarWhenTheDistributionShipsOne(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString('-jar ' . escapeshellarg('vfs://download/jsignpdf/JSignPdf.jar'), $mockProcCommand);
+    }
+
+    public function testSignEscapesOptionValuesGivenAsAList(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $options = [
+            '-kst',
+            'PKCS12',
+            '-ts',
+            'https://tsa.example/tsr?first=1&second=2',
+            '-o',
+            "reason with space, ' quote and ; semicolon",
+        ];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters($options);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(
+            implode(' ', array_map('escapeshellarg', $options)),
+            $mockProcCommand
+        );
+    }
+
+    public function testSignKeepsOptionsGivenAsAStringUntouched(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters('-kst PKCS12 -ts https://freetsa.org/tsr');
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString('-kst PKCS12 -ts https://freetsa.org/tsr', $mockProcCommand);
+    }
+
+    public function testSignUsesTheClasspathWhenTheDistributionHasNoFatJar(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
+        mkdir('vfs://download/jsignpdf/lib', 0755, true);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(
+            '-classpath ' . escapeshellarg('vfs://download/jsignpdf/lib/*') . ' com.intoolswetrust.jsignpdf.Bootstrap',
+            $mockProcCommand
+        );
     }
 }

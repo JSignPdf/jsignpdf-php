@@ -14,6 +14,8 @@ use Throwable;
  */
 class JSignService
 {
+    private const MAIN_CLASS = 'com.intoolswetrust.jsignpdf.Bootstrap';
+
     private JSignFileService $fileService;
 
     public function __construct()
@@ -27,7 +29,7 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            exec($commandSign, $output);
+            $output = $this->execWithPasswordOnStdin($commandSign, $params->getPassword());
 
             $out            = json_encode($output);
             if ($out === false) {
@@ -79,11 +81,10 @@ class JSignService
 
     public function getVersion(JSignParam $params): string
     {
-        $java     = $this->javaCommand($params);
-        $jSignPdf = $this->getjSignPdfJarPath($params);
-        $jSignPdf = $params->getjSignPdfJarPath();
+        $java     = escapeshellarg($this->javaCommand($params));
+        $jSignPdf = $this->jSignPdfInvocation($params);
 
-        $command = "$java -jar $jSignPdf --version 2>&1";
+        $command = "$java $jSignPdf --version 2>&1";
         exec($command, $output);
         $lastRow = end($output);
         if (empty($output) || strpos($lastRow, 'version') === false) {
@@ -133,11 +134,43 @@ class JSignService
     private function commandSign(JSignParam $params): string
     {
         list($pdf, $certificate) = $this->storeTempFiles($params);
-        $java     = $this->javaCommand($params);
-        $jSignPdf = $this->getjSignPdfJarPath($params);
+        $java          = escapeshellarg($this->javaCommand($params));
+        $jSignPdf      = $this->jSignPdfInvocation($params);
+        $pdf           = escapeshellarg($pdf);
+        $certificate   = escapeshellarg($certificate);
+        $pathPdfSigned = escapeshellarg($params->getPathPdfSigned());
 
-        $password = escapeshellarg($params->getPassword());
-        return "$java -Duser.language=en -jar $jSignPdf $pdf -ksf $certificate -ksp {$password} {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
+        return "$java -Duser.language=en $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+    }
+
+    private function jSignPdfInvocation(JSignParam $params): string
+    {
+        $jSignPdfPath = $this->getjSignPdfJarPath($params);
+        $libDir = JSignPdfRuntimeService::baseDir($jSignPdfPath) . '/lib';
+        if (!is_file($jSignPdfPath) && is_dir($libDir)) {
+            return '-classpath ' . escapeshellarg($libDir . '/*') . ' ' . self::MAIN_CLASS;
+        }
+        return '-jar ' . escapeshellarg($jSignPdfPath);
+    }
+
+    private function execWithPasswordOnStdin(string $command, string $password): array
+    {
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+        ];
+        $pipes = [];
+        $process = proc_open($command, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            throw new Exception('Error to sign PDF.');
+        }
+        fwrite($pipes[0], $password . PHP_EOL);
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($process);
+
+        return explode(PHP_EOL, rtrim((string) $output, PHP_EOL));
     }
 
     private function javaCommand(JSignParam $params): string
