@@ -362,6 +362,26 @@ class JSignPDFTest extends TestCase
         $this->assertStringContainsString('-jar ' . escapeshellarg('vfs://download/jsignpdf/JSignPdf.jar'), $mockProcCommand);
     }
 
+    public function testSignPrefersTheClasspathOverALeftoverFatJar(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        mkdir('vfs://download/jsignpdf/lib', 0755, true);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(
+            '-classpath ' . escapeshellarg('vfs://download/jsignpdf/lib/*'),
+            $mockProcCommand
+        );
+        $this->assertStringNotContainsString('-jar ', $mockProcCommand);
+    }
+
     public function testSignEscapesOptionValuesGivenAsAList(): void
     {
         global $mockExec, $mockProcCommand;

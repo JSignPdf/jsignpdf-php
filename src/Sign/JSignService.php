@@ -147,7 +147,7 @@ class JSignService
     {
         $jSignPdfPath = $this->getjSignPdfJarPath($params);
         $libDir = JSignPdfRuntimeService::baseDir($jSignPdfPath) . '/lib';
-        if (!is_file($jSignPdfPath) && is_dir($libDir)) {
+        if (is_dir($libDir)) {
             return '-classpath ' . escapeshellarg($libDir . '/*') . ' ' . self::MAIN_CLASS;
         }
         return '-jar ' . escapeshellarg($jSignPdfPath);
@@ -164,8 +164,13 @@ class JSignService
         if (!is_resource($process)) {
             throw new Exception('Error to sign PDF.');
         }
-        fwrite($pipes[0], $password . PHP_EOL);
+        $written = fwrite($pipes[0], $password . PHP_EOL);
         fclose($pipes[0]);
+        if ($written === false) {
+            fclose($pipes[1]);
+            proc_close($process);
+            throw new Exception('Error to sign PDF.');
+        }
         $output = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
         proc_close($process);
