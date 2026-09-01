@@ -82,6 +82,8 @@ docker compose run --rm php composer run cs:check   # cs:fix to apply the format
 docker compose run --rm php composer run psalm
 ```
 
+### Usage example
+
 To sign a PDF end to end. It downloads the JRE and the JSignPdf jar into `tmp/` on the first run:
 
 ```bash
