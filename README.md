@@ -74,8 +74,13 @@ $param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr'])
 
 ## JSignPdf 3.x
 
-This package targets JSignPdf 3.x, which needs a Java 21+ runtime. Two changes
-of JSignPdf 3.1 are worth knowing about:
+This package targets JSignPdf 3.x, which needs a Java 21+ runtime. JSignPdf 2.x
+is no longer supported: the certificate password is now sent to JSignPdf
+through stdin, and 2.x has no option to read it from there. Pointing
+`setJSignPdfDownloadUrl()` or `setjSignPdfJarPath()` at a 2.x release stops
+working.
+
+Two changes of JSignPdf 3.1 are worth knowing about:
 
 - the default hash algorithm is now SHA-256, which requires at least a PDF-1.6;
 - the CLI appends the signature by default, and the append mode cannot upgrade
