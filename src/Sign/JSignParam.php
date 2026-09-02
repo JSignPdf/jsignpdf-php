@@ -7,6 +7,15 @@ namespace Jeidison\JSignPDF\Sign;
  */
 class JSignParam
 {
+    /** @var array<string, string> */
+    private const PASSWORD_OPTIONS = [
+        '-kp'   => '--key-password',
+        '-opwd' => '--owner-password',
+        '-upwd' => '--user-password',
+        '-tscp' => '--tsa-cert-password',
+        '-tsp'  => '--tsa-password',
+    ];
+
     private string $pdf = '';
     private string $certificate = '';
     private string $password = '';
@@ -20,6 +29,10 @@ class JSignParam
     private string $jSignPdfJarPath = '';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
     private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_1_0/jsignpdf-3.1.0-minimal.zip';
+    /** @var array<string, string> */
+    private array $passwords = [];
+    /** @var array<string, string> */
+    private array $parameterPasswords = [];
 
     public function __construct()
     {
@@ -88,11 +101,89 @@ class JSignParam
      */
     public function setJSignParameters(string|array $JSignParameters): self
     {
+        $this->parameterPasswords = [];
         if (is_array($JSignParameters)) {
-            $JSignParameters = implode(' ', array_map('escapeshellarg', $JSignParameters));
+            $JSignParameters = implode(' ', array_map('escapeshellarg', $this->takePasswords($JSignParameters)));
         }
         $this->JSignParameters = $JSignParameters;
         return $this;
+    }
+
+    public function setKeyPassword(string $password): self
+    {
+        return $this->setPasswordOption('-kp', $password);
+    }
+
+    public function setOwnerPassword(string $password): self
+    {
+        return $this->setPasswordOption('-opwd', $password);
+    }
+
+    public function setUserPassword(string $password): self
+    {
+        return $this->setPasswordOption('-upwd', $password);
+    }
+
+    public function setTsaCertPassword(string $password): self
+    {
+        return $this->setPasswordOption('-tscp', $password);
+    }
+
+    public function setTsaPassword(string $password): self
+    {
+        return $this->setPasswordOption('-tsp', $password);
+    }
+
+    /** @return array<string, string> */
+    public function getPasswords(): array
+    {
+        $passwords = [];
+        foreach (array_keys(self::PASSWORD_OPTIONS) as $option) {
+            $password = $this->passwords[$option] ?? $this->parameterPasswords[$option] ?? null;
+            if ($password !== null) {
+                $passwords[$option] = $password;
+            }
+        }
+        return $passwords;
+    }
+
+    private function setPasswordOption(string $option, string $password): self
+    {
+        $this->passwords[$option] = $password;
+        return $this;
+    }
+
+    /**
+     * @param list<string> $parameters
+     * @return list<string>
+     */
+    private function takePasswords(array $parameters): array
+    {
+        $remaining = [];
+        for ($i = 0; $i < count($parameters); $i++) {
+            $option = $this->passwordOption($parameters[$i]);
+            if ($option !== null && isset($parameters[$i + 1]) && $parameters[$i + 1] !== '-') {
+                $this->parameterPasswords[$option] = $parameters[++$i];
+                continue;
+            }
+            $assignment = explode('=', $parameters[$i], 2);
+            $option = count($assignment) === 2 ? $this->passwordOption($assignment[0]) : null;
+            if ($option !== null && $assignment[1] !== '-') {
+                $this->parameterPasswords[$option] = $assignment[1];
+                continue;
+            }
+            $remaining[] = $parameters[$i];
+        }
+        return $remaining;
+    }
+
+    private function passwordOption(string $parameter): ?string
+    {
+        if (isset(self::PASSWORD_OPTIONS[$parameter])) {
+            return $parameter;
+        }
+        $option = array_search($parameter, self::PASSWORD_OPTIONS, true);
+        return $option === false ? null : $option;
     }
 
     public function getTempPath(): string

@@ -29,7 +29,7 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            $output = $this->execWithPasswordOnStdin($commandSign, $params->getPassword());
+            $output = $this->execWithPasswordsOnStdin($commandSign, $params);
 
             $out            = json_encode($output);
             if ($out === false) {
@@ -140,7 +140,12 @@ class JSignService
         $certificate   = escapeshellarg($certificate);
         $pathPdfSigned = escapeshellarg($params->getPathPdfSigned());
 
-        return "$java -Duser.language=en $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+        $passwords = '';
+        foreach (array_keys($params->getPasswords()) as $option) {
+            $passwords .= "$option - ";
+        }
+
+        return "$java -Duser.language=en $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
     }
 
     private function jSignPdfInvocation(JSignParam $params): string
@@ -153,8 +158,9 @@ class JSignService
         return '-jar ' . escapeshellarg($jSignPdfPath);
     }
 
-    private function execWithPasswordOnStdin(string $command, string $password): array
+    private function execWithPasswordsOnStdin(string $command, JSignParam $params): array
     {
+        $passwords = array_merge([$params->getPassword()], array_values($params->getPasswords()));
         $descriptors = [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
@@ -164,7 +170,7 @@ class JSignService
         if (!is_resource($process)) {
             throw new Exception('Error to sign PDF.');
         }
-        $written = fwrite($pipes[0], $password . PHP_EOL);
+        $written = fwrite($pipes[0], implode(PHP_EOL, $passwords) . PHP_EOL);
         fclose($pipes[0]);
         if ($written === false) {
             fclose($pipes[1]);

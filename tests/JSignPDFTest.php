@@ -440,4 +440,145 @@ class JSignPDFTest extends TestCase
             $mockProcCommand
         );
     }
+
+    private function signWithFakeRuntime(JSignParam $params): void
+    {
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+    }
+
+    public function testSignSendsEveryPasswordThroughStdinInTheOrderJSignPdfReadsThem(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setTsaPassword('tsa secret');
+        $params->setKeyPassword('key secret');
+        $params->setUserPassword('user secret');
+        $params->setTsaCertPassword('tsa cert secret');
+        $params->setOwnerPassword('owner secret');
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringContainsString(
+            '--enable-stdin-passwords -ksp - -kp - -opwd - -upwd - -tscp - -tsp - ',
+            $mockProcCommand
+        );
+        $this->assertEquals(
+            implode(PHP_EOL, [
+                $params->getPassword(),
+                'key secret',
+                'owner secret',
+                'user secret',
+                'tsa cert secret',
+                'tsa secret',
+            ]) . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
+        foreach (['tsa secret', 'key secret', 'user secret', 'tsa cert secret', 'owner secret'] as $password) {
+            $this->assertStringNotContainsString($password, $mockProcCommand);
+        }
+    }
+
+    public function testSignKeepsThePasswordsOfTheOptionListOutOfArgv(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters([
+            '-kst', 'PKCS12',
+            '--overwrite',
+            '-ts', 'https://tsa.example/tsr',
+            '-ta', 'PASSWORD',
+            '-tsu', 'jhon',
+            '-tsp', 'tsa secret',
+        ]);
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringContainsString('--enable-stdin-passwords -ksp - -tsp - ', $mockProcCommand);
+        $this->assertStringNotContainsString('tsa secret', $mockProcCommand);
+        $this->assertStringContainsString(
+            implode(' ', array_map('escapeshellarg', ['-kst', 'PKCS12', '--overwrite', '-ts', 'https://tsa.example/tsr', '-ta', 'PASSWORD', '-tsu', 'jhon'])),
+            $mockProcCommand
+        );
+        $this->assertEquals(
+            $params->getPassword() . PHP_EOL . 'tsa secret' . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
+    }
+
+    #[DataProvider('providerPasswordOptionSpellings')]
+    public function testSignKeepsThePasswordOutOfArgvForEverySpellingOfTheOption(array $parameters): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters($parameters);
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringContainsString('--enable-stdin-passwords -ksp - -tsp - ', $mockProcCommand);
+        $this->assertStringNotContainsString('tsa secret', $mockProcCommand);
+        $this->assertEquals(
+            $params->getPassword() . PHP_EOL . 'tsa secret' . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
+    }
+
+    public static function providerPasswordOptionSpellings(): array
+    {
+        return [
+            'short option' => [['-tsp', 'tsa secret']],
+            'long option' => [['--tsa-password', 'tsa secret']],
+            'short option with assignment' => [['-tsp=tsa secret']],
+            'long option with assignment' => [['--tsa-password=tsa secret']],
+        ];
+    }
+
+    public function testSignPrefersThePasswordOfTheSetterOverTheOneOfTheOptionList(): void
+    {
+        global $mockExec, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters(['-tsp', 'from the list']);
+        $params->setTsaPassword('from the setter');
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertEquals(
+            $params->getPassword() . PHP_EOL . 'from the setter' . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
+    }
+
+    public function testSignForgetsThePasswordsOfAReplacedOptionList(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters(['-tsp', 'tsa secret']);
+        $params->setJSignParameters(['-kst', 'PKCS12']);
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringNotContainsString('-tsp', $mockProcCommand);
+        $this->assertEquals($params->getPassword() . PHP_EOL, file_get_contents($mockProcStdinFile));
+    }
+
+    public function testSignKeepsAPasswordAlreadyMarkedAsReadFromStdin(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters(['-tsp', '-']);
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringContainsString(escapeshellarg('-tsp') . ' ' . escapeshellarg('-'), $mockProcCommand);
+        $this->assertEquals($params->getPassword() . PHP_EOL, file_get_contents($mockProcStdinFile));
+    }
 }

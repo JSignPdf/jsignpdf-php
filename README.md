@@ -72,6 +72,32 @@ the package escape the values, pass a list of options and values instead:
 $param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr']);
 ```
 
+## Passwords
+
+Besides the certificate password of `setPassword()`, JSignPdf takes a password
+for the private key, for encrypted documents and for the timestamping server.
+None of them is passed on the command line, where any user of the machine could
+read it from `ps` or `/proc/<pid>/cmdline`: the package sends every one of them
+to JSignPdf through stdin.
+
+```php
+$param->setKeyPassword('private key password');      // -kp
+$param->setOwnerPassword('owner password');          // -opwd
+$param->setUserPassword('user password');            // -upwd
+$param->setTsaCertPassword('tsa cert password');     // -tscp
+$param->setTsaPassword('tsa password');              // -tsp
+```
+
+Passing one of those options to `setJSignParameters()` as a list works too, and
+the value is taken out of the command line just the same:
+
+```php
+$param->setJSignParameters(['-ts', 'https://freetsa.org/tsr', '-ta', 'PASSWORD', '-tsu', 'jhon', '-tsp', 'tsa password']);
+```
+
+The string form is the exception, as nothing in it is parsed: a password
+written there does reach the command line. Use a setter or a list for it.
+
 ## JSignPdf 3.x
 
 This package targets JSignPdf 3.x, which needs a Java 21+ runtime. JSignPdf 2.x

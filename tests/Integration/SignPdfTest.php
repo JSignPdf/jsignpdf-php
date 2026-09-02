@@ -47,6 +47,17 @@ class SignPdfTest extends TestCase
         $this->assertStringContainsString('adbe.pkcs7', $signed);
     }
 
+    public function testSignSendingMoreThanOnePasswordThroughStdin(): void
+    {
+        $params = $this->params();
+        $params->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
+        $params->setKeyPassword(self::PASSWORD);
+
+        $signed = JSignPDF::instance($params)->sign();
+
+        $this->assertStringContainsString('/ByteRange', $signed);
+    }
+
     public function testSignWithAVisibleSignature(): void
     {
         $params = $this->params();

@@ -41,7 +41,7 @@ JSignPdf 3.x is the supported target and needs a Java 21+ runtime. Two distribut
 
 ## Constraints
 
-Everything reaching a shell must go through `escapeshellarg()`. Secrets (certificate passwords in particular) must never be passed through argv — use stdin instead. JSignPdf reads them from stdin when the option value is `-` and `--enable-stdin-passwords` is set.
+Everything reaching a shell must go through `escapeshellarg()`. Secrets must never be passed through argv — use stdin instead. JSignPdf reads a password from stdin when the option value is `-` and `--enable-stdin-passwords` is set. Every password option goes through it, not only the keystore one: values are read one line each, in the fixed order `-ksp`, `-kp`, `-opwd`, `-upwd`, `-tscp`, `-tsp`, so `JSignParam::getPasswords()` keeps that order and `JSignService` writes the lines in it. The only secret that can still reach argv is one written into the string form of `setJSignParameters()`, which is passed through unparsed.
 
 ## Testing patterns
 
