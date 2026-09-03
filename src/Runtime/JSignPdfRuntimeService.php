@@ -13,22 +13,21 @@ class JSignPdfRuntimeService
 {
     public function getPath(JSignParam $params): string
     {
-        $jsignPdfPath = $params->getjSignPdfJarPath();
+        $jsignPdfPath = $params->getJSignPdfPath();
         $downloadUrl = $params->getJSignPdfDownloadUrl();
 
         if ($jsignPdfPath && !$downloadUrl) {
             if (self::isInstalled($jsignPdfPath)) {
                 return $jsignPdfPath;
             }
-            throw new InvalidArgumentException('Jar of JSignPDF not found on path: '. $jsignPdfPath);
+            throw new InvalidArgumentException('JSignPDF not found on path: '. $jsignPdfPath);
         }
 
         if ($downloadUrl && $jsignPdfPath) {
-            $baseDir = self::baseDir($jsignPdfPath);
-            if (!is_dir($baseDir)) {
-                $ok = mkdir($baseDir, 0755, true);
+            if (!is_dir($jsignPdfPath)) {
+                $ok = mkdir($jsignPdfPath, 0755, true);
                 if ($ok === false) {
-                    throw new InvalidArgumentException('The JSignPdf base dir cannot be created: '. $baseDir);
+                    throw new InvalidArgumentException('The JSignPdf base dir cannot be created: '. $jsignPdfPath);
                 }
             }
             if (!self::isInstalled($jsignPdfPath) || !self::validateVersion($params)) {
@@ -40,33 +39,23 @@ class JSignPdfRuntimeService
         throw new InvalidArgumentException('Java not found.');
     }
 
-    public static function baseDir(string $jsignPdfPath): string
-    {
-        $baseDir = preg_replace('/\/JSignPdf.jar$/', '', $jsignPdfPath);
-        if (!is_string($baseDir)) {
-            throw new InvalidArgumentException('Invalid JsignParamPath');
-        }
-        return $baseDir;
-    }
-
     private static function isInstalled(string $jsignPdfPath): bool
     {
-        return file_exists($jsignPdfPath) || is_dir(self::baseDir($jsignPdfPath) . '/lib');
+        return is_dir($jsignPdfPath . '/lib') || file_exists($jsignPdfPath . '/JSignPdf.jar');
     }
 
     private function validateVersion(JSignParam $params): bool
     {
-        $baseDir = self::baseDir($params->getjSignPdfJarPath());
+        $baseDir = $params->getJSignPdfPath();
         $versionCacheFile = $baseDir . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
         return file_exists($versionCacheFile);
     }
 
     private function downloadAndExtract(JSignParam $params): void
     {
-        $jsignPdfPath = $params->getjSignPdfJarPath();
+        $baseDir = $params->getJSignPdfPath();
         $url = $params->getJSignPdfDownloadUrl();
 
-        $baseDir = self::baseDir($jsignPdfPath);
         if (!is_dir($baseDir)) {
             $ok = mkdir($baseDir, 0755, true);
             if (!$ok) {
@@ -98,7 +87,7 @@ class JSignPdfRuntimeService
         foreach (glob($baseDir . '/.jsignpdf_version_*') ?: [] as $previousVersion) {
             unlink($previousVersion);
         }
-        if (!self::isInstalled($jsignPdfPath)) {
+        if (!self::isInstalled($baseDir)) {
             throw new RuntimeException('JSignPdf not found at: ' . $baseDir);
         }
         touch($baseDir . '/.jsignpdf_version_' . basename($url));

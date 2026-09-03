@@ -67,7 +67,7 @@ class JSignPDFTest extends TestCase
         }
     }
 
-    private function withFakeRuntime(string $jSignPdfPath = 'vfs://download/jsignpdf'): JSignParam
+    private function withFakeRuntime(): JSignParam
     {
         $params = JSignParamBuilder::instance()->withDefault();
         vfsStream::setup('download');
@@ -77,7 +77,8 @@ class JSignPDFTest extends TestCase
         $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
         mkdir('vfs://download/jsignpdf', 0755, true);
-        $params->setjSignPdfJarPath($jSignPdfPath);
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setJSignPdfPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         return $params;
     }
@@ -115,7 +116,8 @@ class JSignPDFTest extends TestCase
         $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
         mkdir('vfs://download/jsignpdf', 0755, true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setJSignPdfPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
@@ -138,7 +140,8 @@ class JSignPDFTest extends TestCase
         $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
         mkdir('vfs://download/jsignpdf', 0755, true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setJSignPdfPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert($password));
         $params->setPassword($password);
@@ -170,7 +173,8 @@ class JSignPDFTest extends TestCase
         $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
         mkdir('vfs://download/jsignpdf', 0755, true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setJSignPdfPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert('123', 0));
         $params->setPassword('123');
@@ -199,7 +203,8 @@ class JSignPDFTest extends TestCase
         $params->setJavaPath('vfs://download/jvava/bin/java');
         $params->setJavaDownloadUrl('');
         mkdir('vfs://download/jsignpdf', 0755, true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf');
+        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params->setJSignPdfPath('vfs://download/jsignpdf');
         $params->setJSignPdfDownloadUrl('');
         $params->setCertificate($this->getNewCert('123'));
         $params->setPassword('123');
@@ -250,7 +255,7 @@ class JSignPDFTest extends TestCase
         $this->expectExceptionMessageMatches('/JSignPDF not found/');
         $params = JSignParamBuilder::instance()->withDefault();
         $params->setJSignPdfDownloadUrl('');
-        $params->setjSignPdfJarPath('invalid_path');
+        $params->setJSignPdfPath('invalid_path');
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setIsUseJavaInstalled(true);
         $this->service->getVersion($params);
@@ -267,11 +272,12 @@ class JSignPDFTest extends TestCase
         touch('vfs://download/bin/java');
         chmod('vfs://download/bin/java', 0755);
         mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/JSignPdf.jar');
         touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
         $params->setJavaPath('vfs://download/bin/java');
         $params->setJSignPdfDownloadUrl('fake_url');
         $params->setIsUseJavaInstalled(true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
+        $params->setJSignPdfPath('vfs://download/jsignpdf_fake_path');
         $version = $this->service->getVersion($params);
         $this->assertNotEmpty($version);
     }
@@ -287,11 +293,12 @@ class JSignPDFTest extends TestCase
         touch('vfs://download/bin/java');
         chmod('vfs://download/bin/java', 0755);
         mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/JSignPdf.jar');
         touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
         $params->setJavaPath('vfs://download/bin/java');
         $params->setJSignPdfDownloadUrl('fake_url');
         $params->setIsUseJavaInstalled(true);
-        $params->setjSignPdfJarPath('vfs://download/jsignpdf_fake_path');
+        $params->setJSignPdfPath('vfs://download/jsignpdf_fake_path');
         $version = $this->service->getVersion($params);
         $this->assertEquals('3.1.0', $version);
     }
@@ -351,8 +358,7 @@ class JSignPDFTest extends TestCase
     {
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
-        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
-        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params = $this->withFakeRuntime();
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
         file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
@@ -366,8 +372,7 @@ class JSignPDFTest extends TestCase
     {
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
-        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
-        touch('vfs://download/jsignpdf/JSignPdf.jar');
+        $params = $this->withFakeRuntime();
         mkdir('vfs://download/jsignpdf/lib', 0755, true);
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
@@ -427,7 +432,8 @@ class JSignPDFTest extends TestCase
     {
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
-        $params = $this->withFakeRuntime('vfs://download/jsignpdf/JSignPdf.jar');
+        $params = $this->withFakeRuntime();
+        unlink('vfs://download/jsignpdf/JSignPdf.jar');
         mkdir('vfs://download/jsignpdf/lib', 0755, true);
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');

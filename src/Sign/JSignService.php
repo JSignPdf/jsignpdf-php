@@ -150,12 +150,12 @@ class JSignService
 
     private function jSignPdfInvocation(JSignParam $params): string
     {
-        $jSignPdfPath = $this->getjSignPdfJarPath($params);
-        $libDir = JSignPdfRuntimeService::baseDir($jSignPdfPath) . '/lib';
+        $jSignPdfPath = $this->getJSignPdfPath($params);
+        $libDir = $jSignPdfPath . '/lib';
         if (is_dir($libDir)) {
             return '-classpath ' . escapeshellarg($libDir . '/*') . ' ' . self::MAIN_CLASS;
         }
-        return '-jar ' . escapeshellarg($jSignPdfPath);
+        return '-jar ' . escapeshellarg($jSignPdfPath . '/JSignPdf.jar');
     }
 
     private function execWithPasswordsOnStdin(string $command, JSignParam $params): array
@@ -190,7 +190,7 @@ class JSignService
         return $javaRuntimeService->getPath($params);
     }
 
-    private function getjSignPdfJarPath(JSignParam $params): string
+    private function getJSignPdfPath(JSignParam $params): string
     {
         $JsignPdfRuntimeService = new JSignPdfRuntimeService();
         return $JsignPdfRuntimeService->getPath($params);

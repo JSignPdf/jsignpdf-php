@@ -36,7 +36,7 @@ $param->setJavaPath('/path/to/bin/java');
 
 With JSignPDF bin:
 ```php
-$param->setjSignPdfJarPath('/path/to/jsignpdf');
+$param->setJSignPdfPath('/path/to/jsignpdf');
 ```
 With specific Java or JSignPdf version:
 ```php
@@ -103,7 +103,7 @@ written there does reach the command line. Use a setter or a list for it.
 This package targets JSignPdf 3.x, which needs a Java 21+ runtime. JSignPdf 2.x
 is no longer supported: the certificate password is now sent to JSignPdf
 through stdin, and 2.x has no option to read it from there. Pointing
-`setJSignPdfDownloadUrl()` or `setjSignPdfJarPath()` at a 2.x release stops
+`setJSignPdfDownloadUrl()` or `setJSignPdfPath()` at a 2.x release stops
 working.
 
 Two changes of JSignPdf 3.1 are worth knowing about:

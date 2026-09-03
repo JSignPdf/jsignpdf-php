@@ -28,7 +28,7 @@ class JSignParam
     private string $tempPath = '';
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
-    private string $jSignPdfJarPath = '';
+    private string $jSignPdfPath = '';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
     private string $jSignPdfDownloadUrl = '';
     /** @var array<string, string> */
@@ -41,7 +41,7 @@ class JSignParam
         $this->tempName = md5(time() . uniqid() . mt_rand());
         $this->tempPath = __DIR__ . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
         $this->javaPath = $this->tempPath . 'java'  . DIRECTORY_SEPARATOR . 'bin'  . DIRECTORY_SEPARATOR . 'java';
-        $this->jSignPdfJarPath = $this->tempPath . 'jsignpdf'  . DIRECTORY_SEPARATOR . 'JSignPdf.jar';
+        $this->jSignPdfPath = $this->tempPath . 'jsignpdf';
         $this->jSignPdfDownloadUrl = self::buildJSignPdfDownloadUrl();
     }
 
@@ -233,15 +233,15 @@ class JSignParam
         return $this->javaPath;
     }
 
-    public function setjSignPdfJarPath(string $jSignPdfJarPath): self
+    public function setJSignPdfPath(string $jSignPdfPath): self
     {
-        $this->jSignPdfJarPath = $jSignPdfJarPath;
+        $this->jSignPdfPath = $jSignPdfPath;
         return $this;
     }
 
-    public function getjSignPdfJarPath(): string
+    public function getJSignPdfPath(): string
     {
-        return $this->jSignPdfJarPath;
+        return $this->jSignPdfPath;
     }
 
     public function isOutputTypeBase64(): bool

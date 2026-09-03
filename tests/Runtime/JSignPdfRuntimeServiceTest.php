@@ -47,9 +47,9 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
         touch($this->testTmpDir . '/JSignPdf.jar');
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir);
         $jsignParam->setJSignPdfDownloadUrl('');
-        $this->assertEquals($this->testTmpDir . '/JSignPdf.jar', $service->getPath($jsignParam));
+        $this->assertEquals($this->testTmpDir, $service->getPath($jsignParam));
     }
 
     public function testGetPathWithoutFatJarButWithLibDirectory(): void
@@ -57,16 +57,16 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
         mkdir($this->testTmpDir . '/lib');
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir);
         $jsignParam->setJSignPdfDownloadUrl('');
-        $this->assertEquals($this->testTmpDir . '/JSignPdf.jar', $service->getPath($jsignParam));
+        $this->assertEquals($this->testTmpDir, $service->getPath($jsignParam));
     }
 
     public function testGetPathWhenNothingIsInstalled(): void
     {
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir);
         $jsignParam->setJSignPdfDownloadUrl('');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/JSignPDF not found/');
@@ -77,7 +77,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
     {
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath('');
+        $jsignParam->setJSignPdfPath('');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/Java not found/');
         $service->getPath($jsignParam);
@@ -92,7 +92,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
 
         $service->getPath($jsignParam);
@@ -114,7 +114,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
 
         $service->getPath($jsignParam);
@@ -141,7 +141,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
         touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-2.3.0.zip');
 
         $jsignParam = new JSignParam();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
         (new JSignPdfRuntimeService())->getPath($jsignParam);
 
@@ -163,7 +163,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
         touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.1.0-minimal.zip');
 
         $jsignParam = new JSignParam();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
         (new JSignPdfRuntimeService())->getPath($jsignParam);
 
@@ -183,7 +183,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
         unlink($zipPath);
 
         $jsignParam = new JSignParam();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
         (new JSignPdfRuntimeService())->getPath($jsignParam);
 
@@ -198,7 +198,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
         unlink($zipPath);
 
         $jsignParam = new JSignParam();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($url);
         (new JSignPdfRuntimeService())->getPath($jsignParam);
 
@@ -213,17 +213,17 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
         mkdir($this->testTmpDir . '/lib');
         touch($this->testTmpDir . '/.jsignpdf_version_jsignpdf-3.1.0-minimal.zip');
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir);
         $jsignParam->setJSignPdfDownloadUrl('https://fake.url/jsignpdf-3.1.0-minimal.zip');
 
-        $this->assertEquals($this->testTmpDir . '/JSignPdf.jar', $service->getPath($jsignParam));
+        $this->assertEquals($this->testTmpDir, $service->getPath($jsignParam));
     }
 
     public function testDownloadWithInvalidUrl(): void
     {
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl('invalid_url');
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/url.*invalid/');
@@ -238,7 +238,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
         $jsignParam = new JSignParam();
         $service = new JSignPdfRuntimeService();
-        $jsignParam->setjSignPdfJarPath($this->testTmpDir . '/install/JSignPdf.jar');
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
         $jsignParam->setJSignPdfDownloadUrl($server->getServerRoot() . '/jsignpdf.zip');
 
         $this->expectException(InvalidArgumentException::class);
