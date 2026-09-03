@@ -16,6 +16,8 @@ class JSignParam
         '-tsp'  => '--tsa-password',
     ];
 
+    private const JSIGNPDF_VERSION = '3.1.0';
+
     private string $pdf = '';
     private string $certificate = '';
     private string $password = '';
@@ -28,7 +30,7 @@ class JSignParam
     private bool $isOutputTypeBase64 = false;
     private string $jSignPdfJarPath = '';
     private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
-    private string $jSignPdfDownloadUrl = 'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_1_0/jsignpdf-3.1.0-minimal.zip';
+    private string $jSignPdfDownloadUrl = '';
     /** @var array<string, string> */
     private array $passwords = [];
     /** @var array<string, string> */
@@ -40,6 +42,13 @@ class JSignParam
         $this->tempPath = __DIR__ . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
         $this->javaPath = $this->tempPath . 'java'  . DIRECTORY_SEPARATOR . 'bin'  . DIRECTORY_SEPARATOR . 'java';
         $this->jSignPdfJarPath = $this->tempPath . 'jsignpdf'  . DIRECTORY_SEPARATOR . 'JSignPdf.jar';
+        $this->jSignPdfDownloadUrl = self::buildJSignPdfDownloadUrl();
+    }
+
+    private static function buildJSignPdfDownloadUrl(): string
+    {
+        $tag = 'JSignPdf_' . str_replace('.', '_', self::JSIGNPDF_VERSION);
+        return "https://github.com/intoolswetrust/jsignpdf/releases/download/$tag/jsignpdf-" . self::JSIGNPDF_VERSION . '-minimal.zip';
     }
 
     public static function instance(): self
