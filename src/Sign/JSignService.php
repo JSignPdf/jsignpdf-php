@@ -84,7 +84,7 @@ class JSignService
         $java     = escapeshellarg($this->javaCommand($params));
         $jSignPdf = $this->jSignPdfInvocation($params);
 
-        $command = "$java $jSignPdf --version 2>&1";
+        $command = implode(' ', array_merge([$java], $this->javaOptions($params), [$jSignPdf, '--version'])) . ' 2>&1';
         exec($command, $output);
         $lastRow = end($output);
         if (empty($output) || strpos($lastRow, 'version') === false) {
@@ -139,13 +139,22 @@ class JSignService
         $pdf           = escapeshellarg($pdf);
         $certificate   = escapeshellarg($certificate);
         $pathPdfSigned = escapeshellarg($params->getPathPdfSigned());
+        $javaOptions   = implode(' ', array_merge(['-Duser.language=en'], $this->javaOptions($params)));
 
         $passwords = '';
         foreach (array_keys($params->getPasswords()) as $option) {
             $passwords .= "$option - ";
         }
 
-        return "$java -Duser.language=en $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function javaOptions(JSignParam $params): array
+    {
+        return array_map('escapeshellarg', $params->getJavaOptions());
     }
 
     private function jSignPdfInvocation(JSignParam $params): string
@@ -166,7 +175,9 @@ class JSignService
             1 => ['pipe', 'w'],
         ];
         $pipes = [];
-        $process = proc_open($command, $descriptors, $pipes);
+        $environmentVariables = $params->getEnvironmentVariables();
+        $env = $environmentVariables === [] ? null : array_merge(getenv() ?: [], $environmentVariables);
+        $process = proc_open($command, $descriptors, $pipes, null, $env);
         if (!is_resource($process)) {
             throw new Exception('Error to sign PDF.');
         }

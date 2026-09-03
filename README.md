@@ -34,6 +34,16 @@ With standalone Java:
 $param->setJavaPath('/path/to/bin/java');
 ```
 
+`setJavaPath()` takes only the path to the `java` executable. Applications
+that need JVM options or environment variables — for example a self-managed
+JSignPdf install that needs `-Duser.home` and `JSIGNPDF_HOME` — set them
+separately:
+
+```php
+$param->setJavaOptions(['-Duser.home=/tmp/jsignpdf-home']);
+$param->setEnvironmentVariables(['JSIGNPDF_HOME' => '/tmp/jsignpdf-home']);
+```
+
 With JSignPDF bin:
 ```php
 $param->setJSignPdfPath('/path/to/jsignpdf');

@@ -29,6 +29,10 @@ class JSignParam
     private array $jSignParameters = self::DEFAULT_JSIGN_PARAMETERS;
     private bool $isUseJavaInstalled = false;
     private string $javaPath = '';
+    /** @var list<string> */
+    private array $javaOptions = [];
+    /** @var array<string, string> */
+    private array $environmentVariables = [];
     private string $tempPath = '';
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
@@ -243,6 +247,42 @@ class JSignParam
     public function getJavaPath(): string
     {
         return $this->javaPath;
+    }
+
+    /**
+     * JVM options for the java command, kept out of javaPath so it stays a
+     * plain executable path (e.g. `-Duser.home=/tmp/jsignpdf-home`).
+     *
+     * @param list<string> $javaOptions
+     */
+    public function setJavaOptions(array $javaOptions): self
+    {
+        $this->javaOptions = $javaOptions;
+        return $this;
+    }
+
+    /** @return list<string> */
+    public function getJavaOptions(): array
+    {
+        return $this->javaOptions;
+    }
+
+    /**
+     * Environment variables for the process that runs JSignPdf (e.g.
+     * `JSIGNPDF_HOME`).
+     *
+     * @param array<string, string> $environmentVariables
+     */
+    public function setEnvironmentVariables(array $environmentVariables): self
+    {
+        $this->environmentVariables = $environmentVariables;
+        return $this;
+    }
+
+    /** @return array<string, string> */
+    public function getEnvironmentVariables(): array
+    {
+        return $this->environmentVariables;
     }
 
     public function setJSignPdfPath(string $jSignPdfPath): self

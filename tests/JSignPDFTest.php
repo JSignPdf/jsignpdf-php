@@ -12,13 +12,14 @@ function exec(string $command, ?array &$output = null, ?int &$return_var = null)
     return \exec($command, $output, $return_var);
 }
 
-function proc_open(string $command, array $descriptor_spec, ?array &$pipes)
+function proc_open(string $command, array $descriptor_spec, ?array &$pipes, ?string $cwd = null, ?array $env_vars = null)
 {
-    global $mockExec, $mockProcCommand, $mockProcStdinFile;
+    global $mockExec, $mockProcCommand, $mockProcStdinFile, $mockProcEnv;
     if (!$mockExec) {
-        return \proc_open($command, $descriptor_spec, $pipes);
+        return \proc_open($command, $descriptor_spec, $pipes, $cwd, $env_vars);
     }
     $mockProcCommand = $command;
+    $mockProcEnv = $env_vars;
     $mockProcStdinFile = tempnam(sys_get_temp_dir(), 'jsignpdf_stdin_');
     $stdout = fopen('php://memory', 'w+');
     fwrite($stdout, implode(PHP_EOL, $mockExec));
@@ -52,10 +53,11 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
-        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        global $mockExec, $mockProcCommand, $mockProcStdinFile, $mockProcEnv;
         $mockExec = null;
         $mockProcCommand = null;
         $mockProcStdinFile = null;
+        $mockProcEnv = null;
         $this->service = new JSignService();
     }
 
@@ -352,6 +354,54 @@ class JSignPDFTest extends TestCase
         $this->assertStringContainsString(escapeshellarg($params->getTempPdfPath()), $mockProcCommand);
         $this->assertStringContainsString('-ksf ' . escapeshellarg($params->getTempCertificatePath()), $mockProcCommand);
         $this->assertStringContainsString('-d ' . escapeshellarg($params->getPathPdfSigned()), $mockProcCommand);
+    }
+
+    public function testSignPassesCustomJavaOptionsToTheJvm(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJavaOptions(['-Duser.home=/tmp/jsignpdf-home']);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(
+            '-Duser.language=en ' . escapeshellarg('-Duser.home=/tmp/jsignpdf-home'),
+            $mockProcCommand
+        );
+    }
+
+    public function testSignDoesNotOverrideTheEnvironmentByDefault(): void
+    {
+        global $mockExec, $mockProcEnv;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertNull($mockProcEnv);
+    }
+
+    public function testSignPassesEnvironmentVariablesToTheProcess(): void
+    {
+        global $mockExec, $mockProcEnv;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setEnvironmentVariables(['JSIGNPDF_HOME' => '/tmp/jsignpdf-home']);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertIsArray($mockProcEnv);
+        $this->assertSame('/tmp/jsignpdf-home', $mockProcEnv['JSIGNPDF_HOME']);
     }
 
     public function testSignUsesTheFatJarWhenTheDistributionShipsOne(): void
