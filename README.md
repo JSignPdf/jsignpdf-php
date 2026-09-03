@@ -61,15 +61,16 @@ $param->setTempPath('/path/temp/to/sign/files/');
 
 Change parameters of JSignPDF:
 ```php
-$param->setJSignParameters("-a -kst PKCS12 -ts https://freetsa.org/tsr");
+$param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr']);
 ```
 
-A string is passed to JSignPdf as written, so it is the one place where the
-content is not escaped for you. Never build one from untrusted input. To let
-the package escape the values, pass a list of options and values instead:
+`setJSignParameters()` takes a list of options and values and replaces the
+current ones; the package escapes every value for you. Use
+`addJSignParameters()` to add more options without reading the current ones
+first:
 
 ```php
-$param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr']);
+$param->addJSignParameters(['-ha', 'SHA512']);
 ```
 
 ## Passwords
@@ -88,15 +89,11 @@ $param->setTsaCertPassword('tsa cert password');     // -tscp
 $param->setTsaPassword('tsa password');              // -tsp
 ```
 
-Passing one of those options to `setJSignParameters()` as a list works too, and
-the value is taken out of the command line just the same:
+Passing one of those options to `setJSignParameters()` or `addJSignParameters()` works too, and the value is taken out of the command line just the same:
 
 ```php
 $param->setJSignParameters(['-ts', 'https://freetsa.org/tsr', '-ta', 'PASSWORD', '-tsu', 'jhon', '-tsp', 'tsa password']);
 ```
-
-The string form is the exception, as nothing in it is parsed: a password
-written there does reach the command line. Use a setter or a list for it.
 
 ## JSignPdf 3.x
 
@@ -117,7 +114,7 @@ parameters. To sign such a file, either turn off the append mode with
 `--overwrite` or pick an algorithm the PDF version supports:
 
 ```php
-$param->setJSignParameters('-kst PKCS12 --overwrite');
+$param->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
 ```
 
 The `-a` flag is kept by JSignPdf 3.1 as a no-op.

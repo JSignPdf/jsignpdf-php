@@ -18,11 +18,15 @@ class JSignParam
 
     private const JSIGNPDF_VERSION = '3.1.0';
 
+    /** @var list<string> */
+    private const DEFAULT_JSIGN_PARAMETERS = ['-a', '-kst', 'PKCS12'];
+
     private string $pdf = '';
     private string $certificate = '';
     private string $password = '';
     private string $pathPdfSigned = '';
-    private string $JSignParameters = "-a -kst PKCS12";
+    /** @var list<string> */
+    private array $jSignParameters = self::DEFAULT_JSIGN_PARAMETERS;
     private bool $isUseJavaInstalled = false;
     private string $javaPath = '';
     private string $tempPath = '';
@@ -102,19 +106,27 @@ class JSignParam
 
     public function getJSignParameters(): string
     {
-        return $this->JSignParameters;
+        return implode(' ', array_map('escapeshellarg', $this->jSignParameters));
     }
 
     /**
-     * @param string|list<string> $JSignParameters
+     * @param list<string> $parameters
      */
-    public function setJSignParameters(string|array $JSignParameters): self
+    public function setJSignParameters(array $parameters): self
     {
         $this->parameterPasswords = [];
-        if (is_array($JSignParameters)) {
-            $JSignParameters = implode(' ', array_map('escapeshellarg', $this->takePasswords($JSignParameters)));
-        }
-        $this->JSignParameters = $JSignParameters;
+        $this->jSignParameters = $this->takePasswords($parameters);
+        return $this;
+    }
+
+    /**
+     * Adds to the current parameters instead of replacing them.
+     *
+     * @param list<string> $parameters
+     */
+    public function addJSignParameters(array $parameters): self
+    {
+        $this->jSignParameters = array_merge($this->jSignParameters, $this->takePasswords($parameters));
         return $this;
     }
 

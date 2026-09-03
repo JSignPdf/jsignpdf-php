@@ -413,19 +413,22 @@ class JSignPDFTest extends TestCase
         );
     }
 
-    public function testSignKeepsOptionsGivenAsAStringUntouched(): void
+    public function testAddJSignParametersAppendsToTheDefaultOptions(): void
     {
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->setJSignParameters('-kst PKCS12 -ts https://freetsa.org/tsr');
+        $params->addJSignParameters(['-ha', 'SHA512']);
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
         file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
 
         $this->service->sign($params);
 
-        $this->assertStringContainsString('-kst PKCS12 -ts https://freetsa.org/tsr', $mockProcCommand);
+        $this->assertStringContainsString(
+            implode(' ', array_map('escapeshellarg', ['-a', '-kst', 'PKCS12', '-ha', 'SHA512'])),
+            $mockProcCommand
+        );
     }
 
     public function testSignUsesTheClasspathWhenTheDistributionHasNoFatJar(): void
@@ -573,6 +576,24 @@ class JSignPDFTest extends TestCase
 
         $this->assertStringNotContainsString('-tsp', $mockProcCommand);
         $this->assertEquals($params->getPassword() . PHP_EOL, file_get_contents($mockProcStdinFile));
+    }
+
+    public function testAddJSignParametersKeepsThePasswordsAlreadySetThroughTheOptionList(): void
+    {
+        global $mockExec, $mockProcCommand, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setJSignParameters(['-tsp', 'tsa secret']);
+        $params->addJSignParameters(['-kst', 'PKCS12']);
+
+        $this->signWithFakeRuntime($params);
+
+        $this->assertStringContainsString('--enable-stdin-passwords -ksp - -tsp - ', $mockProcCommand);
+        $this->assertStringNotContainsString('tsa secret', $mockProcCommand);
+        $this->assertEquals(
+            $params->getPassword() . PHP_EOL . 'tsa secret' . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
     }
 
     public function testSignKeepsAPasswordAlreadyMarkedAsReadFromStdin(): void
