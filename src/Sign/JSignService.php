@@ -29,16 +29,13 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            $output = $this->execWithPasswordsOnStdin($commandSign, $params);
+            [$output, $exitCode] = $this->execWithPasswordsOnStdin($commandSign, $params);
 
-            $out            = json_encode($output);
+            $out = json_encode($output);
             if ($out === false) {
                 throw new Exception('Error to sign PDF.');
             }
-            $messageSuccess = "Finished: Signature succesfully created.";
-            $isSigned       = strpos($out, $messageSuccess) !== false;
-
-            $this->throwIf(!$isSigned, "Error to sign PDF. $out");
+            $this->throwIf($exitCode !== 0, "Error to sign PDF. $out");
 
             $fileSigned = $this->fileService->contentFile(
                 $params->getTempPdfSignedPath(),
@@ -167,6 +164,9 @@ class JSignService
         return '-jar ' . escapeshellarg($jSignPdfPath . '/JSignPdf.jar');
     }
 
+    /**
+     * @psalm-return list{list<string>, int}
+     */
     private function execWithPasswordsOnStdin(string $command, JSignParam $params): array
     {
         $passwords = array_merge([$params->getPassword()], array_values($params->getPasswords()));
@@ -190,9 +190,9 @@ class JSignService
         }
         $output = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        proc_close($process);
+        $exitCode = proc_close($process);
 
-        return explode(PHP_EOL, rtrim((string) $output, PHP_EOL));
+        return [explode(PHP_EOL, rtrim((string) $output, PHP_EOL)), $exitCode];
     }
 
     private function javaCommand(JSignParam $params): string

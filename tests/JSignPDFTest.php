@@ -30,8 +30,8 @@ function proc_open(string $command, array $descriptor_spec, ?array &$pipes, ?str
 
 function proc_close($process)
 {
-    global $mockExec;
-    return $mockExec ? 0 : \proc_close($process);
+    global $mockExec, $mockProcExitCode;
+    return $mockExec ? $mockProcExitCode ?? 0 : \proc_close($process);
 }
 
 namespace Jeidison\JSignPDF\Tests;
@@ -53,11 +53,12 @@ class JSignPDFTest extends TestCase
 
     protected function setUp(): void
     {
-        global $mockExec, $mockProcCommand, $mockProcStdinFile, $mockProcEnv;
+        global $mockExec, $mockProcCommand, $mockProcStdinFile, $mockProcEnv, $mockProcExitCode;
         $mockExec = null;
         $mockProcCommand = null;
         $mockProcStdinFile = null;
         $mockProcEnv = null;
+        $mockProcExitCode = null;
         $this->service = new JSignService();
     }
 
@@ -307,16 +308,44 @@ class JSignPDFTest extends TestCase
 
     public function testSignWhenJSignPdfReportsAFailure(): void
     {
-        global $mockExec;
+        global $mockExec, $mockProcExitCode;
         $mockExec = [
             'INFO Creating signature',
             'INFO Finished: Creating of signature failed.',
         ];
+        $mockProcExitCode = 4;
         $params = $this->withFakeRuntime();
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
 
         $this->expectExceptionMessageMatches('/Creating of signature failed/');
+        $this->service->sign($params);
+    }
+
+    public function testSignSucceedsBasedOnTheExitCodeNotOnTheOutputText(): void
+    {
+        global $mockExec;
+        $mockExec = ['some unrelated log line, no success message here'];
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $fileSignedContent = $this->service->sign($params);
+
+        $this->assertEquals('signed file content', $fileSignedContent);
+    }
+
+    public function testSignFailsBasedOnTheExitCodeEvenWithoutAFailureMessage(): void
+    {
+        global $mockExec, $mockProcExitCode;
+        $mockExec = ['some unrelated log line, no failure message here'];
+        $mockProcExitCode = 1;
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+
+        $this->expectExceptionMessageMatches('/Error to sign PDF/');
         $this->service->sign($params);
     }
 
