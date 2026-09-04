@@ -71,16 +71,29 @@ $param->setTempPath('/path/temp/to/sign/files/');
 
 Change parameters of JSignPDF:
 ```php
-$param->setJSignParameters(['-kst', 'PKCS12', '-ts', 'https://freetsa.org/tsr']);
+$param->setJSignParameters(['-kst' => 'PKCS12', '-ts' => 'https://freetsa.org/tsr']);
 ```
 
-`setJSignParameters()` takes a list of options and values and replaces the
-current ones; the package escapes every value for you. Use
-`addJSignParameters()` to add more options without reading the current ones
-first:
+An option that takes a value is written as `option => value`, and a flag as an
+item without a key:
 
 ```php
-$param->addJSignParameters(['-ha', 'SHA512']);
+$param->setJSignParameters(['-a', '--overwrite', '-kst' => 'PKCS12']);
+```
+
+This is what tells the package which item is an option and which one is its
+value, so a value that looks like an option is never mistaken for one:
+
+```php
+$param->setJSignParameters(['--l2-text' => '-tsp']);   // -tsp is the text, not an option
+```
+
+`setJSignParameters()` replaces the current parameters; the package escapes
+every value for you. Use `addJSignParameters()` to add more options without
+reading the current ones first:
+
+```php
+$param->addJSignParameters(['-ha' => 'SHA512']);
 ```
 
 ## Passwords
@@ -102,8 +115,23 @@ $param->setTsaPassword('tsa password');              // -tsp
 Passing one of those options to `setJSignParameters()` or `addJSignParameters()` works too, and the value is taken out of the command line just the same:
 
 ```php
-$param->setJSignParameters(['-ts', 'https://freetsa.org/tsr', '-ta', 'PASSWORD', '-tsu', 'jhon', '-tsp', 'tsa password']);
+$param->setJSignParameters([
+    '-ts'  => 'https://freetsa.org/tsr',
+    '-ta'  => 'PASSWORD',
+    '-tsu' => 'jhon',
+    '-tsp' => 'tsa password',
+]);
 ```
+
+A password option always takes its value with it: `['-tsp']` alone, or the
+certificate password as `['-ksp' => '...']` — which belongs to `setPassword()` —
+is refused with an `InvalidArgumentException` instead of reaching the command
+line.
+
+JSignPdf reads one password per line from stdin, so a password cannot contain a
+line break: every setter above, and the parameters, reject one with an
+`InvalidArgumentException`. Any other value is supported, spaces, shell
+metacharacters and non-ASCII characters included.
 
 ## JSignPdf 3.x
 
@@ -124,7 +152,7 @@ parameters. To sign such a file, either turn off the append mode with
 `--overwrite` or pick an algorithm the PDF version supports:
 
 ```php
-$param->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
+$param->setJSignParameters(['-kst' => 'PKCS12', '--overwrite']);
 ```
 
 The `-a` flag is kept by JSignPdf 3.1 as a no-op.

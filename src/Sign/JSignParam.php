@@ -2,6 +2,8 @@
 
 namespace Jeidison\JSignPDF\Sign;
 
+use InvalidArgumentException;
+
 /**
  * @author Jeidison Farias <jeidison.farias@gmail.com>
  */
@@ -16,16 +18,24 @@ class JSignParam
         '-tsp'  => '--tsa-password',
     ];
 
+    /**
+     * The certificate password has its own setter, and JSignPdf always reads
+     * it from stdin, so it never comes from the parameters.
+     *
+     * @var array<string, string>
+     */
+    private const CERTIFICATE_PASSWORD_OPTIONS = ['-ksp' => '--keystore-password'];
+
     private const JSIGNPDF_VERSION = '3.1.0';
 
-    /** @var list<string> */
-    private const DEFAULT_JSIGN_PARAMETERS = ['-a', '-kst', 'PKCS12'];
+    /** @var array<array-key, string> */
+    private const DEFAULT_JSIGN_PARAMETERS = ['-a', '-kst' => 'PKCS12'];
 
     private string $pdf = '';
     private string $certificate = '';
     private string $password = '';
     private string $pathPdfSigned = '';
-    /** @var list<string> */
+    /** @var array<array-key, string> */
     private array $jSignParameters = self::DEFAULT_JSIGN_PARAMETERS;
     private bool $isUseJavaInstalled = false;
     private string $javaPath = '';
@@ -93,7 +103,7 @@ class JSignParam
 
     public function setPassword(string $password): self
     {
-        $this->password = $password;
+        $this->password = $this->singleLinePassword('-ksp', $password);
         return $this;
     }
 
@@ -110,11 +120,20 @@ class JSignParam
 
     public function getJSignParameters(): string
     {
-        return implode(' ', array_map('escapeshellarg', $this->jSignParameters));
+        $parameters = [];
+        foreach ($this->jSignParameters as $option => $value) {
+            $parameters[] = is_string($option)
+                ? escapeshellarg($option) . ' ' . escapeshellarg($value)
+                : escapeshellarg($value);
+        }
+        return implode(' ', $parameters);
     }
 
     /**
-     * @param list<string> $parameters
+     * Options that take a value are keyed by the option; flags are items
+     * without a key.
+     *
+     * @param array<array-key, string> $parameters
      */
     public function setJSignParameters(array $parameters): self
     {
@@ -126,7 +145,7 @@ class JSignParam
     /**
      * Adds to the current parameters instead of replacing them.
      *
-     * @param list<string> $parameters
+     * @param array<array-key, string> $parameters
      */
     public function addJSignParameters(array $parameters): self
     {
@@ -174,32 +193,67 @@ class JSignParam
 
     private function setPasswordOption(string $option, string $password): self
     {
-        $this->passwords[$option] = $password;
+        $this->passwords[$option] = $this->singleLinePassword($option, $password);
         return $this;
     }
 
     /**
-     * @param list<string> $parameters
-     * @return list<string>
+     * @param array<array-key, string> $parameters
+     * @return array<array-key, string>
      */
     private function takePasswords(array $parameters): array
     {
         $remaining = [];
-        for ($i = 0; $i < count($parameters); $i++) {
-            $option = $this->passwordOption($parameters[$i]);
-            if ($option !== null && isset($parameters[$i + 1])) {
-                $this->parameterPasswords[$option] = $parameters[++$i];
+        foreach ($parameters as $key => $value) {
+            if (is_string($key)) {
+                $this->rejectTheCertificatePassword($key);
+                $option = $this->passwordOption($key);
+                if ($option !== null) {
+                    $this->parameterPasswords[$option] = $this->singleLinePassword($option, $value);
+                    continue;
+                }
+                $remaining[$key] = $value;
                 continue;
             }
-            $assignment = explode('=', $parameters[$i], 2);
-            $option = count($assignment) === 2 ? $this->passwordOption($assignment[0]) : null;
-            if ($option !== null) {
-                $this->parameterPasswords[$option] = $assignment[1];
+            $assignment = explode('=', $value, 2);
+            if (count($assignment) === 2) {
+                $this->rejectTheCertificatePassword($assignment[0]);
+                $option = $this->passwordOption($assignment[0]);
+                if ($option !== null) {
+                    $this->parameterPasswords[$option] = $this->singleLinePassword($option, $assignment[1]);
+                    continue;
+                }
+                $remaining[] = $value;
                 continue;
             }
-            $remaining[] = $parameters[$i];
+            $this->rejectTheCertificatePassword($value);
+            if ($this->passwordOption($value) !== null) {
+                throw new InvalidArgumentException("The option $value takes a password: pass it as \"'$value' => 'password'\".");
+            }
+            $remaining[] = $value;
         }
         return $remaining;
+    }
+
+    private function rejectTheCertificatePassword(string $parameter): void
+    {
+        if (isset(self::CERTIFICATE_PASSWORD_OPTIONS[$parameter])
+            || in_array($parameter, self::CERTIFICATE_PASSWORD_OPTIONS, true)
+        ) {
+            throw new InvalidArgumentException("The password of $parameter is set with setPassword().");
+        }
+    }
+
+    /**
+     * JSignPdf reads one password per line from stdin, so a password with a
+     * line break would be read as the password of the next option.
+     */
+    private function singleLinePassword(string $option, string $password): string
+    {
+        if (preg_match('/[\r\n]/', $password) === 1) {
+            throw new InvalidArgumentException("The password of $option cannot contain a line break.");
+        }
+        return $password;
     }
 
     private function passwordOption(string $parameter): ?string

@@ -38,7 +38,7 @@ class SignPdfTest extends TestCase
     public function testSignProducesASignedPdf(): void
     {
         $params = $this->params();
-        $params->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
+        $params->setJSignParameters(['-kst' => 'PKCS12', '--overwrite']);
 
         $signed = JSignPDF::instance($params)->sign();
 
@@ -50,7 +50,7 @@ class SignPdfTest extends TestCase
     public function testSignSendingMoreThanOnePasswordThroughStdin(): void
     {
         $params = $this->params();
-        $params->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
+        $params->setJSignParameters(['-kst' => 'PKCS12', '--overwrite']);
         $params->setKeyPassword(self::PASSWORD);
 
         $signed = JSignPDF::instance($params)->sign();
@@ -62,11 +62,11 @@ class SignPdfTest extends TestCase
     {
         $params = $this->params();
         $params->setJSignParameters([
-            '-kst', 'PKCS12',
+            '-kst' => 'PKCS12',
             '--overwrite',
             '-V',
-            '-pg', '1',
-            '-llx', '50', '-lly', '50', '-urx', '300', '-ury', '150',
+            '-pg' => '1',
+            '-llx' => '50', '-lly' => '50', '-urx' => '300', '-ury' => '150',
         ]);
 
         $signed = JSignPDF::instance($params)->sign();
@@ -77,7 +77,7 @@ class SignPdfTest extends TestCase
     public function testSignWithAnExplicitHashAlgorithm(): void
     {
         $params = $this->params();
-        $params->setJSignParameters(['-kst', 'PKCS12', '--overwrite', '-ha', 'SHA512']);
+        $params->setJSignParameters(['-kst' => 'PKCS12', '--overwrite', '-ha' => 'SHA512']);
 
         $signed = JSignPDF::instance($params)->sign();
 

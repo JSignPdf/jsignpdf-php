@@ -30,7 +30,7 @@ $param = JSignParam::instance();
 $param->setCertificate($pfxCertificateContent);
 $param->setPdf(file_get_contents(__DIR__ . '/../tests/resources/pdf-test.pdf'));
 $param->setPassword($password);
-$param->setJSignParameters(['-kst', 'PKCS12', '--overwrite']);
+$param->setJSignParameters(['-kst' => 'PKCS12', '--overwrite']);
 
 $jSignPdf = new JSignPDF($param);
 $fileSigned = $jSignPdf->sign();

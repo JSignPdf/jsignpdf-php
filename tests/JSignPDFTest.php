@@ -496,12 +496,9 @@ class JSignPDFTest extends TestCase
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
         $options = [
-            '-kst',
-            'PKCS12',
-            '-ts',
-            'https://tsa.example/tsr?first=1&second=2',
-            '-o',
-            "reason with space, ' quote and ; semicolon",
+            '-kst' => 'PKCS12',
+            '-ts' => 'https://tsa.example/tsr?first=1&second=2',
+            '-o' => "reason with space, ' quote and ; semicolon",
         ];
         $params = $this->withFakeRuntime();
         $params->setJSignParameters($options);
@@ -511,10 +508,12 @@ class JSignPDFTest extends TestCase
 
         $this->service->sign($params);
 
-        $this->assertStringContainsString(
-            implode(' ', array_map('escapeshellarg', $options)),
-            $mockProcCommand
-        );
+        foreach ($options as $option => $value) {
+            $this->assertStringContainsString(
+                escapeshellarg($option) . ' ' . escapeshellarg($value),
+                $mockProcCommand
+            );
+        }
     }
 
     public function testAddJSignParametersAppendsToTheDefaultOptions(): void
@@ -522,7 +521,7 @@ class JSignPDFTest extends TestCase
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->addJSignParameters(['-ha', 'SHA512']);
+        $params->addJSignParameters(['-ha' => 'SHA512']);
         $params->setCertificate($this->getNewCert($params->getPassword()));
         $params->setPathPdfSigned('vfs://download/temp');
         file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
@@ -530,7 +529,8 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
 
         $this->assertStringContainsString(
-            implode(' ', array_map('escapeshellarg', ['-a', '-kst', 'PKCS12', '-ha', 'SHA512'])),
+            escapeshellarg('-a') . ' ' . escapeshellarg('-kst') . ' ' . escapeshellarg('PKCS12')
+                . ' ' . escapeshellarg('-ha') . ' ' . escapeshellarg('SHA512'),
             $mockProcCommand
         );
     }
@@ -602,12 +602,12 @@ class JSignPDFTest extends TestCase
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
         $params->setJSignParameters([
-            '-kst', 'PKCS12',
+            '-kst' => 'PKCS12',
             '--overwrite',
-            '-ts', 'https://tsa.example/tsr',
-            '-ta', 'PASSWORD',
-            '-tsu', 'jhon',
-            '-tsp', 'tsa secret',
+            '-ts' => 'https://tsa.example/tsr',
+            '-ta' => 'PASSWORD',
+            '-tsu' => 'jhon',
+            '-tsp' => 'tsa secret',
         ]);
 
         $this->signWithFakeRuntime($params);
@@ -645,8 +645,8 @@ class JSignPDFTest extends TestCase
     public static function providerPasswordOptionSpellings(): array
     {
         return [
-            'short option' => [['-tsp', 'tsa secret']],
-            'long option' => [['--tsa-password', 'tsa secret']],
+            'short option' => [['-tsp' => 'tsa secret']],
+            'long option' => [['--tsa-password' => 'tsa secret']],
             'short option with assignment' => [['-tsp=tsa secret']],
             'long option with assignment' => [['--tsa-password=tsa secret']],
         ];
@@ -657,7 +657,7 @@ class JSignPDFTest extends TestCase
         global $mockExec, $mockProcStdinFile;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->setJSignParameters(['-tsp', 'from the list']);
+        $params->setJSignParameters(['-tsp' => 'from the list']);
         $params->setTsaPassword('from the setter');
 
         $this->signWithFakeRuntime($params);
@@ -673,8 +673,8 @@ class JSignPDFTest extends TestCase
         global $mockExec, $mockProcCommand, $mockProcStdinFile;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->setJSignParameters(['-tsp', 'tsa secret']);
-        $params->setJSignParameters(['-kst', 'PKCS12']);
+        $params->setJSignParameters(['-tsp' => 'tsa secret']);
+        $params->setJSignParameters(['-kst' => 'PKCS12']);
 
         $this->signWithFakeRuntime($params);
 
@@ -687,8 +687,8 @@ class JSignPDFTest extends TestCase
         global $mockExec, $mockProcCommand, $mockProcStdinFile;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->setJSignParameters(['-tsp', 'tsa secret']);
-        $params->addJSignParameters(['-kst', 'PKCS12']);
+        $params->setJSignParameters(['-tsp' => 'tsa secret']);
+        $params->addJSignParameters(['-kst' => 'PKCS12']);
 
         $this->signWithFakeRuntime($params);
 
@@ -720,7 +720,7 @@ class JSignPDFTest extends TestCase
     public static function providerDashAsPasswordSpellings(): array
     {
         return [
-            'short option' => [['-tsp', '-']],
+            'short option' => [['-tsp' => '-']],
             'short option with assignment' => [['-tsp=-']],
         ];
     }
