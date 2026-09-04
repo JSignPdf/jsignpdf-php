@@ -29,7 +29,8 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            [$output, $exitCode] = $this->execWithPasswordsOnStdin($commandSign, $params);
+            $passwords = array_merge([$params->getPassword()], array_values($params->getPasswords()));
+            [$output, $exitCode] = $this->run($commandSign, $params, $passwords);
 
             $out = json_encode($output);
             if ($out === false) {
@@ -82,9 +83,9 @@ class JSignService
         $jSignPdf = $this->jSignPdfInvocation($params);
 
         $command = implode(' ', array_merge([$java], $this->javaOptions($params), [$jSignPdf, '--version'])) . ' 2>&1';
-        exec($command, $output);
-        $lastRow = end($output);
-        if (empty($output) || strpos($lastRow, 'version') === false) {
+        [$output] = $this->run($command, $params);
+        $lastRow = (string) end($output);
+        if (strpos($lastRow, 'version') === false) {
             return '';
         }
         return explode('version ', $lastRow)[1];
@@ -165,11 +166,11 @@ class JSignService
     }
 
     /**
+     * @param list<string> $passwords
      * @psalm-return list{list<string>, int}
      */
-    private function execWithPasswordsOnStdin(string $command, JSignParam $params): array
+    private function run(string $command, JSignParam $params, array $passwords = []): array
     {
-        $passwords = array_merge([$params->getPassword()], array_values($params->getPasswords()));
         $descriptors = [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
@@ -179,14 +180,14 @@ class JSignService
         $env = $environmentVariables === [] ? null : array_merge(getenv() ?: [], $environmentVariables);
         $process = proc_open($command, $descriptors, $pipes, null, $env);
         if (!is_resource($process)) {
-            throw new Exception('Error to sign PDF.');
+            throw new Exception('Error to run JSignPdf.');
         }
-        $written = fwrite($pipes[0], implode(PHP_EOL, $passwords) . PHP_EOL);
+        $written = $passwords === [] ? 0 : fwrite($pipes[0], implode(PHP_EOL, $passwords) . PHP_EOL);
         fclose($pipes[0]);
         if ($written === false) {
             fclose($pipes[1]);
             proc_close($process);
-            throw new Exception('Error to sign PDF.');
+            throw new Exception('Error to run JSignPdf.');
         }
         $output = stream_get_contents($pipes[1]);
         fclose($pipes[1]);

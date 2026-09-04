@@ -306,6 +306,31 @@ class JSignPDFTest extends TestCase
         $this->assertEquals('3.1.0', $version);
     }
 
+    public function testGetVersionPassesEnvironmentVariablesToTheProcess(): void
+    {
+        global $mockExec, $mockProcEnv;
+        $mockExec = ['JSignPdf version 3.1.0'];
+
+        $params = JSignParamBuilder::instance()->withDefault();
+        vfsStream::setup('download');
+        mkdir('vfs://download/bin');
+        touch('vfs://download/bin/java');
+        chmod('vfs://download/bin/java', 0755);
+        mkdir('vfs://download/jsignpdf_fake_path/');
+        touch('vfs://download/jsignpdf_fake_path/JSignPdf.jar');
+        touch('vfs://download/jsignpdf_fake_path/.jsignpdf_version_fake_url');
+        $params->setJavaPath('vfs://download/bin/java');
+        $params->setJSignPdfDownloadUrl('fake_url');
+        $params->setIsUseJavaInstalled(true);
+        $params->setJSignPdfPath('vfs://download/jsignpdf_fake_path');
+        $params->setEnvironmentVariables(['JSIGNPDF_HOME' => '/tmp/jsignpdf-home']);
+
+        $this->service->getVersion($params);
+
+        $this->assertIsArray($mockProcEnv);
+        $this->assertSame('/tmp/jsignpdf-home', $mockProcEnv['JSIGNPDF_HOME']);
+    }
+
     public function testSignWhenJSignPdfReportsAFailure(): void
     {
         global $mockExec, $mockProcExitCode;
