@@ -187,13 +187,13 @@ class JSignParam
         $remaining = [];
         for ($i = 0; $i < count($parameters); $i++) {
             $option = $this->passwordOption($parameters[$i]);
-            if ($option !== null && isset($parameters[$i + 1]) && $parameters[$i + 1] !== '-') {
+            if ($option !== null && isset($parameters[$i + 1])) {
                 $this->parameterPasswords[$option] = $parameters[++$i];
                 continue;
             }
             $assignment = explode('=', $parameters[$i], 2);
             $option = count($assignment) === 2 ? $this->passwordOption($assignment[0]) : null;
-            if ($option !== null && $assignment[1] !== '-') {
+            if ($option !== null) {
                 $this->parameterPasswords[$option] = $assignment[1];
                 continue;
             }

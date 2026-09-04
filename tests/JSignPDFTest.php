@@ -675,16 +675,28 @@ class JSignPDFTest extends TestCase
         );
     }
 
-    public function testSignKeepsAPasswordAlreadyMarkedAsReadFromStdin(): void
+    #[DataProvider('providerDashAsPasswordSpellings')]
+    public function testSignSendsADashThroughStdinAsAnyOtherPassword(array $parameters): void
     {
         global $mockExec, $mockProcCommand, $mockProcStdinFile;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        $params->setJSignParameters(['-tsp', '-']);
+        $params->setJSignParameters($parameters);
 
         $this->signWithFakeRuntime($params);
 
-        $this->assertStringContainsString(escapeshellarg('-tsp') . ' ' . escapeshellarg('-'), $mockProcCommand);
-        $this->assertEquals($params->getPassword() . PHP_EOL, file_get_contents($mockProcStdinFile));
+        $this->assertStringContainsString('--enable-stdin-passwords -ksp - -tsp - ', $mockProcCommand);
+        $this->assertEquals(
+            $params->getPassword() . PHP_EOL . '-' . PHP_EOL,
+            file_get_contents($mockProcStdinFile)
+        );
+    }
+
+    public static function providerDashAsPasswordSpellings(): array
+    {
+        return [
+            'short option' => [['-tsp', '-']],
+            'short option with assignment' => [['-tsp=-']],
+        ];
     }
 }
