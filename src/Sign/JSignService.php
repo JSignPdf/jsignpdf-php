@@ -14,6 +14,8 @@ use Throwable;
  */
 class JSignService
 {
+    private const MAIN_CLASS = 'com.intoolswetrust.jsignpdf.Bootstrap';
+
     private JSignFileService $fileService;
 
     public function __construct()
@@ -27,16 +29,14 @@ class JSignService
             $this->validation($params);
 
             $commandSign = $this->commandSign($params);
-            exec($commandSign, $output);
+            $passwords = array_merge([$params->getPassword()], array_values($params->getPasswords()));
+            [$output, $exitCode] = $this->run($commandSign, $params, $passwords);
 
-            $out            = json_encode($output);
+            $out = json_encode($output);
             if ($out === false) {
                 throw new Exception('Error to sign PDF.');
             }
-            $messageSuccess = "Finished: Signature succesfully created.";
-            $isSigned       = strpos($out, $messageSuccess) !== false;
-
-            $this->throwIf(!$isSigned, "Error to sign PDF. $out");
+            $this->throwIf($exitCode !== 0, "Error to sign PDF. $out");
 
             $fileSigned = $this->fileService->contentFile(
                 $params->getTempPdfSignedPath(),
@@ -79,14 +79,13 @@ class JSignService
 
     public function getVersion(JSignParam $params): string
     {
-        $java     = $this->javaCommand($params);
-        $jSignPdf = $this->getjSignPdfJarPath($params);
-        $jSignPdf = $params->getjSignPdfJarPath();
+        $java     = escapeshellarg($this->javaCommand($params));
+        $jSignPdf = $this->jSignPdfInvocation($params);
 
-        $command = "$java -jar $jSignPdf --version 2>&1";
-        exec($command, $output);
-        $lastRow = end($output);
-        if (empty($output) || strpos($lastRow, 'version') === false) {
+        $command = implode(' ', array_merge([$java], $this->javaOptions($params), [$jSignPdf, '--version'])) . ' 2>&1';
+        [$output] = $this->run($command, $params);
+        $lastRow = (string) end($output);
+        if (strpos($lastRow, 'version') === false) {
             return '';
         }
         return explode('version ', $lastRow)[1];
@@ -133,11 +132,68 @@ class JSignService
     private function commandSign(JSignParam $params): string
     {
         list($pdf, $certificate) = $this->storeTempFiles($params);
-        $java     = $this->javaCommand($params);
-        $jSignPdf = $this->getjSignPdfJarPath($params);
+        $java          = escapeshellarg($this->javaCommand($params));
+        $jSignPdf      = $this->jSignPdfInvocation($params);
+        $pdf           = escapeshellarg($pdf);
+        $certificate   = escapeshellarg($certificate);
+        $pathPdfSigned = escapeshellarg($params->getPathPdfSigned());
+        $javaOptions   = implode(' ', array_merge(['-Duser.language=en'], $this->javaOptions($params)));
 
-        $password = escapeshellarg($params->getPassword());
-        return "$java -Duser.language=en -jar $jSignPdf $pdf -ksf $certificate -ksp {$password} {$params->getJSignParameters()} -d {$params->getPathPdfSigned()} 2>&1";
+        $passwords = '';
+        foreach (array_keys($params->getPasswords()) as $option) {
+            $passwords .= "$option - ";
+        }
+
+        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function javaOptions(JSignParam $params): array
+    {
+        return array_map('escapeshellarg', $params->getJavaOptions());
+    }
+
+    private function jSignPdfInvocation(JSignParam $params): string
+    {
+        $jSignPdfPath = $this->getJSignPdfPath($params);
+        $libDir = $jSignPdfPath . '/lib';
+        if (is_dir($libDir)) {
+            return '-classpath ' . escapeshellarg($libDir . '/*') . ' ' . self::MAIN_CLASS;
+        }
+        return '-jar ' . escapeshellarg($jSignPdfPath . '/JSignPdf.jar');
+    }
+
+    /**
+     * @param list<string> $passwords
+     * @psalm-return list{list<string>, int}
+     */
+    private function run(string $command, JSignParam $params, array $passwords = []): array
+    {
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+        ];
+        $pipes = [];
+        $environmentVariables = $params->getEnvironmentVariables();
+        $env = $environmentVariables === [] ? null : array_merge(getenv() ?: [], $environmentVariables);
+        $process = proc_open($command, $descriptors, $pipes, null, $env);
+        if (!is_resource($process)) {
+            throw new Exception('Error to run JSignPdf.');
+        }
+        $written = $passwords === [] ? 0 : fwrite($pipes[0], implode(PHP_EOL, $passwords) . PHP_EOL);
+        fclose($pipes[0]);
+        if ($written === false) {
+            fclose($pipes[1]);
+            proc_close($process);
+            throw new Exception('Error to run JSignPdf.');
+        }
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $exitCode = proc_close($process);
+
+        return [explode(PHP_EOL, rtrim((string) $output, PHP_EOL)), $exitCode];
     }
 
     private function javaCommand(JSignParam $params): string
@@ -146,7 +202,7 @@ class JSignService
         return $javaRuntimeService->getPath($params);
     }
 
-    private function getjSignPdfJarPath(JSignParam $params): string
+    private function getJSignPdfPath(JSignParam $params): string
     {
         $JsignPdfRuntimeService = new JSignPdfRuntimeService();
         return $JsignPdfRuntimeService->getPath($params);
