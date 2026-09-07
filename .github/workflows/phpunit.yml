@@ -49,7 +49,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up php ${{ matrix.php-versions }}
-        uses: shivammathur/setup-php@c482204203a2eb89366ad513842766b70efaaee8 # v2.36.0
+        uses: shivammathur/setup-php@1e29d2af9f90f64e9286d069754fe7ffa0dfd992 # v2.36.0
         with:
           php-version: ${{ matrix.php-versions }}
           extensions: json, openssl
@@ -76,7 +76,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up php
-        uses: shivammathur/setup-php@c482204203a2eb89366ad513842766b70efaaee8 # v2.36.0
+        uses: shivammathur/setup-php@1e29d2af9f90f64e9286d069754fe7ffa0dfd992 # v2.36.0
         with:
           php-version: 8.4
           extensions: json, openssl, zip
