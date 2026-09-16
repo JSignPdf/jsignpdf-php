@@ -9,6 +9,16 @@ use PHPUnit\Framework\TestCase;
 
 class JSignParamTest extends TestCase
 {
+    public function testUsesJSignPdf320AsTheDefaultRuntime(): void
+    {
+        $params = JSignParam::instance();
+
+        $this->assertSame(
+            'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_2_0/jsignpdf-3.2.0-minimal.zip',
+            $params->getJSignPdfDownloadUrl()
+        );
+    }
+
     #[DataProvider('providerValuesThatLookLikeAPasswordOption')]
     public function testKeepsAValueThatLooksLikeAPasswordOptionInTheParameters(string $value): void
     {

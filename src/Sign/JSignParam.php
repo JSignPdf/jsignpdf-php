@@ -26,7 +26,7 @@ class JSignParam
      */
     private const CERTIFICATE_PASSWORD_OPTIONS = ['-ksp' => '--keystore-password'];
 
-    private const JSIGNPDF_VERSION = '3.1.0';
+    private const JSIGNPDF_VERSION = '3.2.0';
 
     /** @var array<array-key, string> */
     private const DEFAULT_JSIGN_PARAMETERS = ['-a', '-kst' => 'PKCS12'];
