@@ -66,7 +66,10 @@ class SignPdfTest extends TestCase
             '--overwrite',
             '-V',
             '-pg' => '1',
-            '-llx' => '50', '-lly' => '50', '-urx' => '300', '-ury' => '150',
+            '-llx' => '50',
+            '-lly' => '50',
+            '-urx' => '300',
+            '-ury' => '150',
         ]);
 
         $signed = JSignPDF::instance($params)->sign();
@@ -86,7 +89,9 @@ class SignPdfTest extends TestCase
 
     public function testSignAPdfOlderThan16WithTheDefaultParameters(): void
     {
-        $this->expectExceptionMessageMatches('/Creating of signature failed/');
-        JSignPDF::instance($this->params())->sign();
+        $signed = JSignPDF::instance($this->params())->sign();
+
+        $this->assertStringStartsWith('%PDF-', $signed);
+        $this->assertStringContainsString('/ByteRange', $signed);
     }
 }
