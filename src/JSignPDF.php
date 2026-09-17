@@ -5,6 +5,7 @@ namespace Jeidison\JSignPDF;
 use Exception;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use Jeidison\JSignPDF\Sign\JSignService;
+use Jeidison\JSignPDF\Sign\SignatureField;
 
 /**
  * @author Jeidison Farias <jeidison.farias@gmail.com>
@@ -41,9 +42,20 @@ class JSignPDF
         return $this->service->getVersion($this->param);
     }
 
+    /**
+     * @return list<SignatureField>
+     */
+    public function getSignatureFields(): array
+    {
+        if (!$this->param instanceof JSignParam) {
+            throw new Exception('Invalid JSignParam instance');
+        }
+
+        return $this->service->getSignatureFields($this->param);
+    }
+
     public function setParam(JSignParam $param): void
     {
         $this->param = $param;
     }
-
 }

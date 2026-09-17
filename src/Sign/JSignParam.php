@@ -54,6 +54,8 @@ class JSignParam
     /** @var array<string, string> */
     private array $parameterPasswords = [];
 
+    private ?string $signatureField = null;
+
     public function __construct()
     {
         $this->tempName = md5(time() . uniqid() . mt_rand());
@@ -396,5 +398,16 @@ class JSignParam
     public function getJSignPdfDownloadUrl(): string
     {
         return $this->jSignPdfDownloadUrl;
+    }
+
+    public function setSignatureField(?string $fieldName): self
+    {
+        $this->signatureField = $fieldName;
+        return $this;
+    }
+
+    public function getSignatureField(): ?string
+    {
+        return $this->signatureField;
     }
 }

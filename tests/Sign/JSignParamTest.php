@@ -1,6 +1,6 @@
 <?php
 
-namespace Jeidison\JSignPDF\Tests;
+namespace Jeidison\JSignPDF\Tests\Sign;
 
 use InvalidArgumentException;
 use Jeidison\JSignPDF\Sign\JSignParam;
@@ -173,5 +173,40 @@ class JSignParamTest extends TestCase
             'carriage return' => ["pass\rword"],
             'both' => ["pass\r\nword"],
         ];
+    }
+
+    public function testSignatureFieldDefaultsToNull(): void
+    {
+        $params = JSignParam::instance();
+
+        $this->assertNull($params->getSignatureField());
+    }
+
+    public function testCanSetSignatureField(): void
+    {
+        $params = JSignParam::instance();
+
+        $result = $params->setSignatureField('Customer Signature');
+
+        $this->assertSame($params, $result);
+        $this->assertSame('Customer Signature', $params->getSignatureField());
+    }
+
+    public function testSignatureFieldIsNotReinterpreted(): void
+    {
+        $params = JSignParam::instance();
+
+        $params->setSignatureField('  #1  ');
+
+        $this->assertSame('  #1  ', $params->getSignatureField());
+    }
+
+    public function testSignatureFieldCanBeResetToNull(): void
+    {
+        $params = JSignParam::instance()
+            ->setSignatureField('CustomerSignature')
+            ->setSignatureField(null);
+
+        $this->assertNull($params->getSignatureField());
     }
 }
