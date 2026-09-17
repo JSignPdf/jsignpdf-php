@@ -96,6 +96,44 @@ reading the current ones first:
 $param->addJSignParameters(['-ha' => 'SHA512']);
 ```
 
+## Existing signature fields
+
+JSignPdf 3.2 can inspect existing signature fields in a PDF. Only the PDF is
+required for inspection; a certificate and signing password are not needed.
+
+```php
+$param = JSignParam::instance();
+$param->setPdf(file_get_contents('/path/to/file/pdf_to_sign.pdf'));
+
+$jSignPdf = new JSignPDF($param);
+$fields = $jSignPdf->getSignatureFields();
+
+foreach ($fields as $field) {
+    echo $field->getName();
+    echo $field->getPage();
+    echo $field->isSigned() ? 'signed' : 'blank';
+}
+```
+
+Each signature field exposes its name, page, rectangle coordinates and whether
+it is signed or hidden. `isBlank()` is the opposite of `isSigned()`, and
+`hasVisibleRectangle()` reports whether the field has a non-zero rectangle.
+
+To sign an existing blank signature field, select it by name before signing:
+
+```php
+$param->setCertificate(file_get_contents('/path/to/file/certificate.pfx'));
+$param->setPassword('certificate_password');
+$param->setSignatureField('Customer Signature');
+
+$fileSigned = JSignPDF::instance($param)->sign();
+```
+
+The value passed to `setSignatureField()` is passed directly to JSignPdf.
+Names containing spaces or Unicode characters are supported. JSignPdf also
+supports its own field selectors such as `auto` and `#1`; when a field has one
+of those literal names, JSignPdf gives the field name precedence.
+
 ## Passwords
 
 Besides the certificate password of `setPassword()`, JSignPdf takes a password

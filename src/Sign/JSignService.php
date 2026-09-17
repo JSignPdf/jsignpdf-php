@@ -91,6 +91,156 @@ class JSignService
         return explode('version ', $lastRow)[1];
     }
 
+    /**
+     * @return list<SignatureField>
+     */
+    public function getSignatureFields(JSignParam $params): array
+    {
+        $this->validateSignatureFieldInspection($params);
+
+        $pdf = $this->fileService->storeFile(
+            $params->getTempPath(),
+            $params->getTempName('.pdf'),
+            $params->getPdf()
+        );
+
+        try {
+            $command = $this->commandListSignatureFields($params, $pdf);
+            [$output, $exitCode] = $this->run($command, $params);
+
+            if ($exitCode !== 0) {
+                $diagnostic = trim(implode(PHP_EOL, $output));
+
+                if ($diagnostic === '') {
+                    $diagnostic = 'Can not read the signature fields.';
+                }
+
+                throw new Exception($diagnostic);
+            }
+
+            return $this->parseSignatureFields($output);
+        } finally {
+            $this->fileService->deleteFile($pdf);
+        }
+    }
+
+    private function validateSignatureFieldInspection(JSignParam $params): void
+    {
+        $this->throwIf(
+            empty($params->getTempPath()) || !is_writable($params->getTempPath()),
+            'Temp Path is invalid or has not permission to writable.'
+        );
+
+        $this->throwIf(
+            empty($params->getPdf()),
+            'PDF is Empty or Invalid.'
+        );
+    }
+
+    private function commandListSignatureFields(JSignParam $params, string $pdf): string
+    {
+        $java = escapeshellarg($this->javaCommand($params));
+        $jSignPdf = $this->jSignPdfInvocation($params);
+        $pdf = escapeshellarg($pdf);
+
+        $javaOptions = implode(
+            ' ',
+            array_merge(['-Duser.language=en'], $this->javaOptions($params))
+        );
+
+        return "$java $javaOptions $jSignPdf --quiet --list-sig-fields $pdf 2>&1";
+    }
+
+    /**
+     * @param list<string> $output
+     * @return list<SignatureField>
+     */
+    private function parseSignatureFields(array $output): array
+    {
+        $fields = [];
+        $sawHeader = false;
+        $sawNoFields = false;
+
+        foreach ($output as $line) {
+            if (preg_match('/^Signature fields of .+:$/u', $line) === 1) {
+                if ($sawHeader || $sawNoFields || $fields !== []) {
+                    throw new Exception(
+                        "Unexpected signature field output: $line"
+                    );
+                }
+
+                $sawHeader = true;
+                continue;
+            }
+
+            if (preg_match('/:\s*no signature fields\s*$/', $line) === 1) {
+                if ($sawHeader || $sawNoFields || $fields !== []) {
+                    throw new Exception(
+                        "Unexpected signature field output: $line"
+                    );
+                }
+
+                $sawNoFields = true;
+                continue;
+            }
+
+            if ($sawNoFields) {
+                throw new Exception(
+                    "Unexpected signature field output: $line"
+                );
+            }
+
+            $line = preg_replace(
+                '/\s+- this field name shadows the selector of the same name, the field name wins\s*$/',
+                '',
+                $line
+            );
+
+            if ($line === null) {
+                throw new Exception(
+                    'Unexpected signature field output.'
+                );
+            }
+
+            $matches = [];
+
+            $matched = preg_match(
+                '/^#\d+\s+(.+?)\s+page\s+(\d+)\s+\[(-?(?:\d+(?:\.\d*)?|\.\d+))\s+(-?(?:\d+(?:\.\d*)?|\.\d+))\s+(-?(?:\d+(?:\.\d*)?|\.\d+))\s+(-?(?:\d+(?:\.\d*)?|\.\d+))\]\s+(blank|signed)(?:,\s*hidden|\s+hidden)?\s*$/u',
+                $line,
+                $matches
+            );
+
+            if ($matched !== 1) {
+                throw new Exception(
+                    "Unexpected signature field output: $line"
+                );
+            }
+
+            $fields[] = new SignatureField(
+                rtrim($matches[1]),
+                (int) $matches[2],
+                (float) $matches[3],
+                (float) $matches[4],
+                (float) $matches[5],
+                (float) $matches[6],
+                $matches[7] === 'signed',
+                preg_match('/(?:,\s*|\s+)hidden\s*$/', $line) === 1,
+            );
+        }
+
+        if ($sawNoFields) {
+            return [];
+        }
+
+        if ($fields === []) {
+            throw new Exception(
+                'Unexpected signature field output: empty output'
+            );
+        }
+
+        return $fields;
+    }
+
     private function validation(JSignParam $params): void
     {
         $this->throwIf(empty($params->getTempPath()) || !is_writable($params->getTempPath()), 'Temp Path is invalid or has not permission to writable.');
@@ -140,11 +290,16 @@ class JSignService
         $javaOptions   = implode(' ', array_merge(['-Duser.language=en'], $this->javaOptions($params)));
 
         $passwords = '';
+        $signatureField = '';
+        if ($params->getSignatureField() !== null) {
+            $signatureField = '--sig-field ' . escapeshellarg($params->getSignatureField()) . ' ';
+        }
+
         foreach (array_keys($params->getPasswords()) as $option) {
             $passwords .= "$option - ";
         }
 
-        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$signatureField}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
     }
 
     /**

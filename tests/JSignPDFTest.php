@@ -38,6 +38,7 @@ namespace Jeidison\JSignPDF\Tests;
 
 use org\bovigo\vfs\vfsStream;
 use Exception;
+use Jeidison\JSignPDF\JSignPDF;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use Jeidison\JSignPDF\Sign\JSignService;
 use Jeidison\JSignPDF\Tests\Builder\JSignParamBuilder;
@@ -723,5 +724,279 @@ class JSignPDFTest extends TestCase
             'short option' => [['-tsp' => '-']],
             'short option with assignment' => [['-tsp=-']],
         ];
+    }
+
+    public function testSignPassesTheConfiguredSignatureField(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+
+        $params = $this->withFakeRuntime();
+        $params->setSignatureField("Customer Signature 'Main'");
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(
+            '--sig-field ' . escapeshellarg("Customer Signature 'Main'"),
+            $mockProcCommand
+        );
+    }
+
+    public function testSignDoesNotPassSignatureFieldWhenItIsNotConfigured(): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringNotContainsString('--sig-field', $mockProcCommand);
+    }
+
+    public function testGetSignatureFieldsUsesTheInspectionCommandWithoutSigningCredentials(): void
+    {
+        global $mockExec, $mockProcCommand;
+
+        $mockExec = ['document.pdf: no signature fields'];
+
+        $params = $this->withFakeRuntime();
+        $params->setCertificate('');
+        $params->setPassword('');
+
+        $fields = $this->service->getSignatureFields($params);
+
+        $this->assertSame([], $fields);
+        $this->assertStringContainsString('--quiet --list-sig-fields', $mockProcCommand);
+        $this->assertStringContainsString('-Duser.language=en', $mockProcCommand);
+        $this->assertStringNotContainsString('-ksf', $mockProcCommand);
+        $this->assertStringNotContainsString('--enable-stdin-passwords', $mockProcCommand);
+    }
+
+    public function testGetSignatureFieldsDeletesTheTemporaryPdfAfterInspection(): void
+    {
+        global $mockExec;
+
+        $mockExec = ['document.pdf: no signature fields'];
+
+        $params = $this->withFakeRuntime();
+        $tempPdf = $params->getTempPdfPath();
+
+        $this->service->getSignatureFields($params);
+
+        $this->assertFileDoesNotExist($tempPdf);
+    }
+
+    public function testGetSignatureFieldsParsesJSignPdfOutput(): void
+    {
+        global $mockExec;
+
+        $mockExec = [
+            '#1   Customer Signature              page 1    [70.0 700.0 300.0 760.0] blank',
+            '#2   Manager Signature               page 2    [70.5 600.25 300.75 660.0] signed, hidden',
+            '#3   Podpis zákazníka                page 3    [-10.5 -20.25 0.0 0.0] blank hidden',
+        ];
+
+        $params = $this->withFakeRuntime();
+
+        $fields = $this->service->getSignatureFields($params);
+
+        $this->assertCount(3, $fields);
+
+        $this->assertSame('Customer Signature', $fields[0]->getName());
+        $this->assertSame(1, $fields[0]->getPage());
+        $this->assertSame(70.0, $fields[0]->getLlx());
+        $this->assertSame(700.0, $fields[0]->getLly());
+        $this->assertSame(300.0, $fields[0]->getUrx());
+        $this->assertSame(760.0, $fields[0]->getUry());
+        $this->assertTrue($fields[0]->isBlank());
+        $this->assertFalse($fields[0]->isHidden());
+
+        $this->assertSame('Manager Signature', $fields[1]->getName());
+        $this->assertSame(2, $fields[1]->getPage());
+        $this->assertTrue($fields[1]->isSigned());
+        $this->assertTrue($fields[1]->isHidden());
+
+        $this->assertSame('Podpis zákazníka', $fields[2]->getName());
+        $this->assertSame(-10.5, $fields[2]->getLlx());
+        $this->assertSame(-20.25, $fields[2]->getLly());
+        $this->assertTrue($fields[2]->isBlank());
+        $this->assertTrue($fields[2]->isHidden());
+    }
+
+    public function testGetSignatureFieldsParsesNamesLongerThanTheDisplayWidth(): void
+    {
+        global $mockExec;
+
+        $name = 'This signature field name is much longer than thirty characters';
+
+        $mockExec = [
+            "#1   $name page 1    [10.0 20.0 30.0 40.0] blank",
+        ];
+
+        $fields = $this->service->getSignatureFields($this->withFakeRuntime());
+
+        $this->assertSame($name, $fields[0]->getName());
+    }
+
+    public function testGetSignatureFieldsIgnoresSelectorShadowSuffix(): void
+    {
+        global $mockExec;
+
+        $suffix = ' - this field name shadows the selector of the same name, the field name wins';
+
+        $mockExec = [
+            '#1   auto                           page 1    [10.0 20.0 30.0 40.0] blank' . $suffix,
+            '#2   #1                             page 2    [50.0 60.0 70.0 80.0] signed' . $suffix,
+        ];
+
+        $fields = $this->service->getSignatureFields($this->withFakeRuntime());
+
+        $this->assertSame('auto', $fields[0]->getName());
+        $this->assertSame('#1', $fields[1]->getName());
+    }
+
+    public function testGetSignatureFieldsRejectsMalformedFieldOutput(): void
+    {
+        global $mockExec;
+
+        $mockExec = [
+            '#1 broken signature field output',
+        ];
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('#1 broken signature field output');
+
+        $this->service->getSignatureFields($this->withFakeRuntime());
+    }
+
+    public function testGetSignatureFieldsPreservesJSignPdfFailureDiagnostic(): void
+    {
+        global $mockExec, $mockProcExitCode;
+
+        $mockExec = [
+            "Can not read the signature fields of '/tmp/document.pdf': Invalid PDF",
+        ];
+        $mockProcExitCode = 5;
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage(
+            "Can not read the signature fields of '/tmp/document.pdf': Invalid PDF"
+        );
+
+        $this->service->getSignatureFields($this->withFakeRuntime());
+    }
+
+    public function testGetSignatureFieldsDeletesTemporaryPdfWhenExecutionFails(): void
+    {
+        global $mockExec, $mockProcExitCode;
+
+        $mockExec = [
+            "Can not read the signature fields of '/tmp/document.pdf': Invalid PDF",
+        ];
+        $mockProcExitCode = 5;
+
+        $params = $this->withFakeRuntime();
+        $tempPdf = $params->getTempPdfPath();
+
+        try {
+            $this->service->getSignatureFields($params);
+            $this->fail('Expected signature field inspection to fail.');
+        } catch (Exception $e) {
+            $this->assertStringContainsString(
+                'Can not read the signature fields',
+                $e->getMessage()
+            );
+        }
+
+        $this->assertFileDoesNotExist($tempPdf);
+    }
+
+    public function testGetSignatureFieldsDeletesTemporaryPdfWhenParsingFails(): void
+    {
+        global $mockExec;
+
+        $mockExec = [
+            '#1 malformed output',
+        ];
+
+        $params = $this->withFakeRuntime();
+        $tempPdf = $params->getTempPdfPath();
+
+        try {
+            $this->service->getSignatureFields($params);
+            $this->fail('Expected signature field parsing to fail.');
+        } catch (Exception $e) {
+            $this->assertStringContainsString(
+                '#1 malformed output',
+                $e->getMessage()
+            );
+        }
+
+        $this->assertFileDoesNotExist($tempPdf);
+    }
+
+    public function testGetSignatureFieldsThroughFacadeRequiresParams(): void
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Invalid JSignParam instance');
+
+        JSignPDF::instance()->getSignatureFields();
+    }
+
+    public function testGetSignatureFieldsParsesHeaderBeforeFields(): void
+    {
+        global $mockExec;
+
+        $mockExec = [
+            'Signature fields of /tmp/example.pdf:',
+            '#1   Customer Signature             page 1    [70.0 700.0 300.0 760.0] blank',
+        ];
+
+        $fields = $this->service->getSignatureFields(
+            $this->withFakeRuntime()
+        );
+
+        $this->assertCount(1, $fields);
+        $this->assertSame('Customer Signature', $fields[0]->getName());
+    }
+
+    public function testGetSignatureFieldsRejectsEmptySuccessfulOutput(): void
+    {
+        global $mockExec;
+
+        $mockExec = [''];
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Unexpected signature field output');
+
+        $this->service->getSignatureFields(
+            $this->withFakeRuntime()
+        );
+    }
+
+    public function testGetSignatureFieldsRejectsFieldAfterNoFieldsOutput(): void
+    {
+        global $mockExec;
+
+        $mockExec = [
+            '/tmp/example.pdf: no signature fields',
+            '#1   Customer Signature             page 1    [70.0 700.0 300.0 760.0] blank',
+        ];
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(
+            'Unexpected signature field output'
+        );
+
+        $this->service->getSignatureFields(
+            $this->withFakeRuntime()
+        );
     }
 }
