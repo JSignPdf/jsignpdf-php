@@ -4,6 +4,7 @@ namespace Jeidison\JSignPDF\Tests\Integration;
 
 use Jeidison\JSignPDF\JSignPDF;
 use Jeidison\JSignPDF\Sign\JSignParam;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -27,6 +28,111 @@ class SignPdfTest extends TestCase
         $params->setPdf(file_get_contents(__DIR__ . '/../resources/pdf-test.pdf'));
         $params->setPassword(self::PASSWORD);
         return $params;
+    }
+
+    private function legacyCertificateParams(): JSignParam
+    {
+        $tempDir = sys_get_temp_dir() . '/jsignpdf-legacy-' . bin2hex(random_bytes(8));
+
+        if (! mkdir($tempDir, 0700, true) && ! is_dir($tempDir)) {
+            $this->fail('Could not create temporary directory.');
+        }
+
+        $key = $tempDir . '/key.pem';
+        $cert = $tempDir . '/cert.pem';
+        $pkcs12 = $tempDir . '/certificate.p12';
+
+        try {
+            exec(
+                sprintf(
+                    'openssl req -x509 -newkey rsa:2048 -nodes -keyout %s -out %s'
+                    . ' -subj %s -days 1 2>&1',
+                    escapeshellarg($key),
+                    escapeshellarg($cert),
+                    escapeshellarg('/CN=JSignPdf Legacy Test')
+                ),
+                $output,
+                $exitCode
+            );
+
+            $this->assertSame(
+                0,
+                $exitCode,
+                'Could not generate test certificate: ' . implode(PHP_EOL, $output)
+            );
+
+            $output = [];
+
+            exec(
+                sprintf(
+                    'openssl pkcs12 -export -legacy -inkey %s -in %s -out %s'
+                    . ' -passout %s 2>&1',
+                    escapeshellarg($key),
+                    escapeshellarg($cert),
+                    escapeshellarg($pkcs12),
+                    escapeshellarg('pass:' . self::PASSWORD)
+                ),
+                $output,
+                $exitCode
+            );
+
+            if ($exitCode !== 0) {
+                $this->markTestSkipped(
+                    'The installed OpenSSL does not support legacy PKCS#12 generation.'
+                );
+            }
+
+            $certificate = file_get_contents($pkcs12);
+            $this->assertNotFalse($certificate);
+        } finally {
+            foreach ([$key, $cert, $pkcs12] as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+
+            if (is_dir($tempDir)) {
+                rmdir($tempDir);
+            }
+        }
+
+        $params = JSignParam::instance();
+        $params->setCertificate($certificate);
+        $params->setPdf(file_get_contents(__DIR__ . '/../resources/pdf-test.pdf'));
+        $params->setPassword(self::PASSWORD);
+
+        return $params;
+    }
+
+    #[DataProvider('opensslErrorQueueProvider')]
+    public function testSignWithLegacyCertificateIgnoresPreviousOpenSslErrors(
+        string $errorSource
+    ): void {
+        while (openssl_error_string() !== false) {
+        }
+
+        match ($errorSource) {
+            'x509' => @openssl_x509_read('not-a-certificate'),
+            'private-key' => @openssl_pkey_get_private('not-a-private-key'),
+            'pkcs12' => (function (): void {
+                $certificates = [];
+                @openssl_pkcs12_read('not-a-pkcs12', $certificates, 'wrong-password');
+            })(),
+        };
+
+        $signed = JSignPDF::instance($this->legacyCertificateParams())->sign();
+
+        $this->assertStringStartsWith('%PDF-', $signed);
+        $this->assertStringContainsString('/ByteRange', $signed);
+    }
+
+    public static function opensslErrorQueueProvider(): array
+    {
+        return [
+            'previous X509 error' => ['x509'],
+            'previous private key error' => ['private-key'],
+            'previous PKCS12 error' => ['pkcs12'],
+        ];
     }
 
     public function testGetVersionReturnsTheInstalledJSignPdf(): void
