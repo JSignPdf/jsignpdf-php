@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up php8.1
-        uses: shivammathur/setup-php@87d00bde2555f25eb54fedf940384e99cbdc55ef # v2.36.0
+        uses: shivammathur/setup-php@5a89ae6dd61c772780c51d7542f4374d76990a0b # v2.36.0
         with:
           php-version: 8.1
           extensions: json, openssl
