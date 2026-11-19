@@ -1,5 +1,23 @@
 <?php
 
+namespace Jeidison\JSignPDF;
+
+function fopen(string $filename, string $mode)
+{
+    global $handleOpenedOnCreation;
+    $file = \fopen($filename, $mode);
+    if ($mode === 'x' && $file !== false && $handleOpenedOnCreation === null) {
+        $handleOpenedOnCreation = \fopen($filename, 'r');
+    }
+    return $file;
+}
+
+function fwrite($stream, string $data)
+{
+    global $failingWrite;
+    return $failingWrite ? 0 : \fwrite($stream, $data);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use Jeidison\JSignPDF\JSignFileService;
@@ -12,6 +30,9 @@ class JSignFileServiceTest extends TestCase
 
     protected function setUp(): void
     {
+        global $handleOpenedOnCreation, $failingWrite;
+        $handleOpenedOnCreation = false;
+        $failingWrite = false;
         $this->directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'jsignpdf_' . bin2hex(random_bytes(8)) . DIRECTORY_SEPARATOR;
         mkdir($this->directory, 0700);
     }
@@ -43,6 +64,32 @@ class JSignFileServiceTest extends TestCase
 
         clearstatcache();
         $this->assertSame(0600, fileperms($filename) & 0777);
+    }
+
+    public function testStoreFileKeepsTheContentAwayFromAHandleOpenedWhenThePathWasCreated(): void
+    {
+        global $handleOpenedOnCreation;
+        $handleOpenedOnCreation = null;
+
+        JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+
+        $this->assertIsResource($handleOpenedOnCreation);
+        $this->assertSame('', stream_get_contents($handleOpenedOnCreation));
+    }
+
+    public function testStoreFileLeavesNothingBehindWhenTheWriteFails(): void
+    {
+        global $failingWrite;
+        $failingWrite = true;
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('A failed write was reported as success.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('certificate.pfx', $exception->getMessage());
+        }
+
+        $this->assertSame([], glob($this->directory . '*'));
     }
 
     public function testStoreFileDoesNotWriteIntoAFileThatAlreadyExists(): void
