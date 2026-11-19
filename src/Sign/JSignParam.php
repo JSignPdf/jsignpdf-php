@@ -389,7 +389,9 @@ class JSignParam
     public function setJavaDownloadUrl(string $url, string $sha256 = ''): self
     {
         $this->javaDownloadUrl = $url;
-        $this->javaDownloadSha256 = $this->validSha256($sha256);
+        $this->javaDownloadSha256 = $sha256 === '' && $url === self::JAVA_DOWNLOAD_URL
+            ? self::JAVA_SHA256
+            : $this->validSha256($sha256);
         return $this;
     }
 
@@ -406,7 +408,9 @@ class JSignParam
     public function setJSignPdfDownloadUrl(string $url, string $sha256 = ''): self
     {
         $this->jSignPdfDownloadUrl = $url;
-        $this->jSignPdfDownloadSha256 = $this->validSha256($sha256);
+        $this->jSignPdfDownloadSha256 = $sha256 === '' && $url === self::buildJSignPdfDownloadUrl()
+            ? self::JSIGNPDF_SHA256
+            : $this->validSha256($sha256);
         return $this;
     }
 

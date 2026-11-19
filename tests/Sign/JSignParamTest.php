@@ -47,6 +47,17 @@ class JSignParamTest extends TestCase
         $this->assertSame('', $params->getJSignPdfDownloadSha256());
     }
 
+    public function testSettingTheDefaultDownloadUrlAgainKeepsItsSha256(): void
+    {
+        $params = JSignParam::instance();
+        $params
+            ->setJavaDownloadUrl($params->getJavaDownloadUrl())
+            ->setJSignPdfDownloadUrl($params->getJSignPdfDownloadUrl());
+
+        $this->assertSame('a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd', $params->getJavaDownloadSha256());
+        $this->assertSame('960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c', $params->getJSignPdfDownloadSha256());
+    }
+
     public function testKeepsTheSha256GivenWithACustomDownloadUrl(): void
     {
         $sha256 = str_repeat('AB', 32);
