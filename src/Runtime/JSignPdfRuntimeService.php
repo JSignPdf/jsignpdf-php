@@ -166,8 +166,8 @@ class JSignPdfRuntimeService
         if ($sha256 === '') {
             return;
         }
-        $actual = hash_file('sha256', $path);
-        if ($actual === false || !hash_equals($sha256, $actual)) {
+        $downloadedSha256 = hash_file('sha256', $path);
+        if ($downloadedSha256 === false || !hash_equals($sha256, $downloadedSha256)) {
             unlink($path);
             throw new RuntimeException('The file downloaded from ' . $url . ' does not match the expected SHA-256.');
         }
