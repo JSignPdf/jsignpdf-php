@@ -254,6 +254,45 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertSame($this->testTmpDir . '/bin/java', (new JavaRuntimeService())->getPath($secondParams));
     }
 
+    public function testGetPathRejectsAnHttpErrorResponse(): void
+    {
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $this->server->setResponseOfPath('/java.tar.gz', new Response('not found', [], 404));
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($this->server->getServerRoot() . '/java.tar.gz');
+
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+            $this->fail('An HTTP error response was accepted as the Java package.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
+    }
+
+    public function testGetPathLeavesNothingBehindWhenTheDownloadFails(): void
+    {
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $url = $this->server->getServerRoot() . '/java.tar.gz';
+        $this->server->stop();
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+            $this->fail('A failed download was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
+    }
+
     /**
      * @param array<string, string> $files
      * @return array{string, string}

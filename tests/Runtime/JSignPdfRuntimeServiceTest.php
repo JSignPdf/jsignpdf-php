@@ -302,6 +302,48 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $this->assertSame($this->testTmpDir . '/install', (new JSignPdfRuntimeService())->getPath($secondParams));
     }
 
+    public function testDownloadRejectsAnHttpErrorResponse(): void
+    {
+        $server = new MockWebServer();
+        $server->start();
+        $this->servers[] = $server;
+        $server->setResponseOfPath('/jsignpdf.zip', new Response('not found', [], 404));
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($server->getServerRoot() . '/jsignpdf.zip');
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('An HTTP error response was accepted as the JSignPdf package.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
+    }
+
+    public function testDownloadLeavesNothingBehindWhenItFails(): void
+    {
+        $server = new MockWebServer();
+        $server->start();
+        $url = $server->getServerRoot() . '/jsignpdf.zip';
+        $server->stop();
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('A failed download was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
+    }
+
     public function testDownloadWithInvalidUrl(): void
     {
         $jsignParam = new JSignParam();

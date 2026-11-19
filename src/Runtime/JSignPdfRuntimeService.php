@@ -145,24 +145,25 @@ class JSignPdfRuntimeService
 
     private function chunkDownload(string $url, string $destination): void
     {
-        $fp = fopen($destination, 'w');
-
-        if ($fp) {
-            $ch = curl_init($url);
-            if ($ch === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FILE, $fp);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            $response = curl_exec($ch);
-            if ($response === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_close($ch);
-            fclose($fp);
-        } else {
-            throw new InvalidArgumentException("Failute to download file using the url $url");
+        $file = fopen($destination, 'w');
+        if ($file === false) {
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        $curl = curl_init($url);
+        if ($curl === false) {
+            fclose($file);
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        curl_setopt($curl, CURLOPT_FILE, $file);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        $downloaded = curl_exec($curl);
+        $error = curl_error($curl);
+        fclose($file);
+        if ($downloaded === false) {
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url . ': ' . $error);
         }
     }
 
