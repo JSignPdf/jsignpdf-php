@@ -2,6 +2,8 @@
 
 namespace Jeidison\JSignPDF;
 
+use RuntimeException;
+
 /**
  * @author Jeidison Farias <jeidison.farias@gmail.com>
  */
@@ -24,7 +26,16 @@ class JSignFileService
     public function storeFile(string $path, string $name, string $content): string
     {
         $filename = $path . $name;
-        file_put_contents($filename, $content);
+        $file = @fopen($filename, 'x');
+        if ($file === false) {
+            throw new RuntimeException('Failure to create the temporary file: ' . $filename);
+        }
+        chmod($filename, 0600);
+        $written = fwrite($file, $content);
+        fclose($file);
+        if ($written !== strlen($content)) {
+            throw new RuntimeException('Failure to write the temporary file: ' . $filename);
+        }
         return $filename;
     }
 

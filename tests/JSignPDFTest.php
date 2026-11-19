@@ -393,6 +393,23 @@ class JSignPDFTest extends TestCase
         $this->assertEquals($password . PHP_EOL, file_get_contents($mockProcStdinFile));
     }
 
+    public function testSignRepacksAUnicodePasswordWithARandomOne(): void
+    {
+        global $mockExec, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert('with 😃 unicode'));
+        $params->setPassword('with 😃 unicode');
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $repackPassword = rtrim((string) file_get_contents($mockProcStdinFile), PHP_EOL);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $repackPassword);
+        $this->assertTrue(openssl_pkcs12_read($params->getCertificate(), $certificate, $repackPassword));
+    }
+
     public function testSignEscapesEveryPathOfTheCommand(): void
     {
         global $mockExec, $mockProcCommand;

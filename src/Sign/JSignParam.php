@@ -58,7 +58,7 @@ class JSignParam
 
     public function __construct()
     {
-        $this->tempName = md5(time() . uniqid() . mt_rand());
+        $this->tempName = bin2hex(random_bytes(16));
         $this->tempPath = __DIR__ . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . '..'  . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
         $this->javaPath = $this->tempPath . 'java'  . DIRECTORY_SEPARATOR . 'bin'  . DIRECTORY_SEPARATOR . 'java';
         $this->jSignPdfPath = $this->tempPath . 'jsignpdf';

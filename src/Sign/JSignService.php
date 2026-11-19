@@ -70,7 +70,7 @@ class JSignService
     ): void {
         $detectedEncodingString = mb_detect_encoding($params->getPassword(), 'ASCII', true);
         if ($detectedEncodingString === false) {
-            $password = md5(microtime());
+            $password = bin2hex(random_bytes(32));
             $newCert = $this->exportToPkcs12($cert, $pkey, $password);
             $params->setPassword($password);
             $params->setCertificate($newCert);
