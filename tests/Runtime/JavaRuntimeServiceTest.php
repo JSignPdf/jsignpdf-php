@@ -225,6 +225,35 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
     }
 
+    public function testGetPathDownloadsAgainWhenTheInstalledVersionWasNotCheckedAgainstTheGivenSha256(): void
+    {
+        [$url, $sha256] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'java']);
+        touch($this->testTmpDir . '/.java_version_' . basename($url));
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url, $sha256);
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('java', file_get_contents($this->testTmpDir . '/bin/java'));
+    }
+
+    public function testGetPathDoesNotDownloadAgainAVersionCheckedAgainstTheGivenSha256(): void
+    {
+        [$url, $sha256] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'java']);
+        $firstParams = new JSignParam();
+        $firstParams->setJavaPath($this->testTmpDir . '/bin/java');
+        $firstParams->setJavaDownloadUrl($url, $sha256);
+        (new JavaRuntimeService())->getPath($firstParams);
+        $this->server?->stop();
+
+        $secondParams = new JSignParam();
+        $secondParams->setJavaPath($this->testTmpDir . '/bin/java');
+        $secondParams->setJavaDownloadUrl($url, $sha256);
+
+        $this->assertSame($this->testTmpDir . '/bin/java', (new JavaRuntimeService())->getPath($secondParams));
+    }
+
     /**
      * @param array<string, string> $files
      * @return array{string, string}

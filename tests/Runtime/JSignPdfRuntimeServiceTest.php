@@ -261,6 +261,47 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
     }
 
+    public function testDownloadsAgainWhenTheInstalledVersionWasNotCheckedAgainstTheGivenSha256(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+        mkdir($this->testTmpDir . '/install/lib', 0755, true);
+        touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.2.0.zip');
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, $sha256);
+
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/jsignpdf.jar');
+    }
+
+    public function testDoesNotDownloadAgainAVersionCheckedAgainstTheGivenSha256(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+        $firstParams = new JSignParam();
+        $firstParams->setJSignPdfPath($this->testTmpDir . '/install');
+        $firstParams->setJSignPdfDownloadUrl($url, $sha256);
+        (new JSignPdfRuntimeService())->getPath($firstParams);
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
+        $secondParams = new JSignParam();
+        $secondParams->setJSignPdfPath($this->testTmpDir . '/install');
+        $secondParams->setJSignPdfDownloadUrl($url, $sha256);
+
+        $this->assertSame($this->testTmpDir . '/install', (new JSignPdfRuntimeService())->getPath($secondParams));
+    }
+
     public function testDownloadWithInvalidUrl(): void
     {
         $jsignParam = new JSignParam();

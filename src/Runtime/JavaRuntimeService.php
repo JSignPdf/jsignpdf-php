@@ -55,8 +55,13 @@ class JavaRuntimeService
         if (!is_string($baseDir)) {
             throw new InvalidArgumentException('Invalid JsignParamPath');
         }
-        $lastVersion = $baseDir . '/.java_version_' . basename($params->getJavaDownloadUrl());
+        $lastVersion = $baseDir . '/' . $this->versionMarker($params->getJavaDownloadUrl(), $params->getJavaDownloadSha256());
         return file_exists($lastVersion);
+    }
+
+    private function versionMarker(string $url, string $sha256): string
+    {
+        return '.java_version_' . basename($url) . ($sha256 === '' ? '' : '.' . $sha256);
     }
 
     private function downloadAndExtract(string $url, string $sha256, string $baseDir): void
@@ -91,7 +96,7 @@ class JavaRuntimeService
         @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
         @exec('rm -f ' . escapeshellarg($baseDir) . '/.java_version_*');
         unlink($baseDir . '/java.tar.gz');
-        touch($baseDir . '/.java_version_' . basename($url));
+        touch($baseDir . '/' . $this->versionMarker($url, $sha256));
         if (!file_exists($baseDir . '/bin/java')) {
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }

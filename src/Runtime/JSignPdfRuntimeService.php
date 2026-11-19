@@ -47,8 +47,13 @@ class JSignPdfRuntimeService
     private function validateVersion(JSignParam $params): bool
     {
         $baseDir = $params->getJSignPdfPath();
-        $versionCacheFile = $baseDir . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
-        return file_exists($versionCacheFile);
+        return file_exists($baseDir . '/' . $this->versionMarker($params));
+    }
+
+    private function versionMarker(JSignParam $params): string
+    {
+        $sha256 = $params->getJSignPdfDownloadSha256();
+        return '.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl()) . ($sha256 === '' ? '' : '.' . $sha256);
     }
 
     private function downloadAndExtract(JSignParam $params): void
@@ -91,7 +96,7 @@ class JSignPdfRuntimeService
         if (!self::isInstalled($baseDir)) {
             throw new RuntimeException('JSignPdf not found at: ' . $baseDir);
         }
-        touch($baseDir . '/.jsignpdf_version_' . basename($url));
+        touch($baseDir . '/' . $this->versionMarker($params));
     }
 
     private function archiveRoot(string $staging): string
