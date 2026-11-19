@@ -29,6 +29,7 @@ jobs:
               - '.github/workflows/**'
               - 'src/**'
               - 'tests/**'
+              - 'vendor-bin/**'
               - 'vendor/**'
               - 'composer.json'
               - 'composer.lock'
