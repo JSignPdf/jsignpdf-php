@@ -85,9 +85,13 @@ class JavaRuntimeService
         if (empty($rootDirInsideTar)) {
             throw new InvalidArgumentException('Invalid tar content.');
         }
-        $tar->extractTo(directory: $baseDir, overwrite: true);
-        @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar) . '/* ' . escapeshellarg($baseDir));
-        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
+        $staging = $baseDir . '/.java_staging_' . bin2hex(random_bytes(8));
+        try {
+            $tar->extractTo(directory: $staging, overwrite: true);
+            $this->replaceInstall($staging . '/' . $rootDirInsideTar, $baseDir);
+        } finally {
+            @exec('rm -rf ' . escapeshellarg($staging));
+        }
         @exec('rm -f ' . escapeshellarg($baseDir) . '/.java_version_*');
         unlink($baseDir . '/java.tar.gz');
         touch($baseDir . '/.java_version_' . basename($url));
@@ -95,6 +99,17 @@ class JavaRuntimeService
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }
         chmod($baseDir . '/bin/java', 0700);
+    }
+
+    private function replaceInstall(string $source, string $baseDir): void
+    {
+        foreach (array_diff(scandir($source) ?: [], ['.', '..']) as $entry) {
+            $target = $baseDir . '/' . $entry;
+            @exec('rm -rf ' . escapeshellarg($target));
+            if (!rename($source . '/' . $entry, $target)) {
+                throw new RuntimeException('Failure to install Java at: ' . $target);
+            }
+        }
     }
 
     private function findRootDir(PharData $phar, string $rootDir): string
