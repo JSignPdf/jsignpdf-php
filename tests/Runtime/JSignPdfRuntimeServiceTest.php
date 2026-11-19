@@ -14,6 +14,8 @@ use ZipArchive;
 class JSignPdfRuntimeServiceTest extends TestCase
 {
     private string $testTmpDir = '';
+    /** @var list<MockWebServer> */
+    private array $servers = [];
 
     protected function setUp(): void
     {
@@ -36,6 +38,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
     {
         $server = new MockWebServer();
         $server->start();
+        $this->servers[] = $server;
         $server->setResponseOfPath(
             '/' . $filename,
             new Response(file_get_contents($zipPath)),
@@ -287,6 +290,9 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_zip_dir_*', GLOB_ONLYDIR);
 
         foreach ($dirs as $dir) {

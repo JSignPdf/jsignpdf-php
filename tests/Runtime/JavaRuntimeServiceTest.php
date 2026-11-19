@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 class JavaRuntimeServiceTest extends TestCase
 {
     public string $testTmpDir = '';
+    private ?MockWebServer $server = null;
     protected function setUp(): void
     {
         $this->testTmpDir = sys_get_temp_dir() . '/jsignpdf_temp_dir_' . uniqid();
@@ -239,11 +240,11 @@ class JavaRuntimeServiceTest extends TestCase
         unset($tar);
         unlink($tarPath);
 
-        $server = new MockWebServer();
-        $server->start();
-        $server->setResponseOfPath('/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', new Response($content));
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $this->server->setResponseOfPath('/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', new Response($content));
         return [
-            $server->getServerRoot() . '/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz',
+            $this->server->getServerRoot() . '/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz',
             hash('sha256', $content),
         ];
     }
@@ -263,6 +264,7 @@ class JavaRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->server?->stop();
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_temp_*', GLOB_ONLYDIR);
 
         foreach ($dirs as $dir) {
