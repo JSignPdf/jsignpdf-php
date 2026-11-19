@@ -38,7 +38,7 @@ class JavaRuntimeService
                 }
             }
             if (!self::validateVersion($params)) {
-                self::downloadAndExtract($downloadUrl, $javaPath);
+                self::downloadAndExtract($downloadUrl, $params->getJavaDownloadSha256(), $javaPath);
             }
             $params->setJavaDownloadUrl('');
             $params->setJavaPath($javaPath);
@@ -59,7 +59,7 @@ class JavaRuntimeService
         return file_exists($lastVersion);
     }
 
-    private function downloadAndExtract(string $url, string $baseDir): void
+    private function downloadAndExtract(string $url, string $sha256, string $baseDir): void
     {
         $baseDir = preg_replace('/\/bin\/java$/', '', $baseDir);
         if (!is_string($baseDir)) {
@@ -76,6 +76,7 @@ class JavaRuntimeService
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
         $this->chunkDownload($url, $baseDir . '/java.tar.gz');
+        $this->verifySha256($baseDir . '/java.tar.gz', $sha256, $url);
         try {
             $tar = new PharData($baseDir . '/java.tar.gz');
         } catch (PharException|UnexpectedValueException $e) {
@@ -137,6 +138,18 @@ class JavaRuntimeService
             fclose($fp);
         } else {
             throw new InvalidArgumentException("Failute to download file using the url $url");
+        }
+    }
+
+    private function verifySha256(string $path, string $sha256, string $url): void
+    {
+        if ($sha256 === '') {
+            return;
+        }
+        $actual = hash_file('sha256', $path);
+        if ($actual === false || !hash_equals($sha256, $actual)) {
+            unlink($path);
+            throw new RuntimeException('The file downloaded from ' . $url . ' does not match the expected SHA-256.');
         }
     }
 }

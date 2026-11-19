@@ -66,6 +66,7 @@ class JSignPdfRuntimeService
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
         $this->chunkDownload($url, $baseDir . '/jsignpdf.zip');
+        $this->verifySha256($baseDir . '/jsignpdf.zip', $params->getJSignPdfDownloadSha256(), $url);
         $zip = new ZipArchive();
         $ok = $zip->open($baseDir . '/jsignpdf.zip');
         if ($ok !== true) {
@@ -157,6 +158,18 @@ class JSignPdfRuntimeService
             fclose($fp);
         } else {
             throw new InvalidArgumentException("Failute to download file using the url $url");
+        }
+    }
+
+    private function verifySha256(string $path, string $sha256, string $url): void
+    {
+        if ($sha256 === '') {
+            return;
+        }
+        $actual = hash_file('sha256', $path);
+        if ($actual === false || !hash_equals($sha256, $actual)) {
+            unlink($path);
+            throw new RuntimeException('The file downloaded from ' . $url . ' does not match the expected SHA-256.');
         }
     }
 }

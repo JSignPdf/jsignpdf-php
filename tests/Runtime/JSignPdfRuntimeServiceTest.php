@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Jeidison\JSignPDF\Runtime\JSignPdfRuntimeService;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use ZipArchive;
 
 class JSignPdfRuntimeServiceTest extends TestCase
@@ -217,6 +218,44 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $jsignParam->setJSignPdfDownloadUrl('https://fake.url/jsignpdf-3.1.0-minimal.zip');
 
         $this->assertEquals($this->testTmpDir, $service->getPath($jsignParam));
+    }
+
+    public function testDownloadMatchingTheGivenSha256IsInstalled(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, strtoupper($sha256));
+
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/jsignpdf.jar');
+    }
+
+    public function testDownloadNotMatchingTheGivenSha256IsNotInstalled(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'tampered jar content']);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, str_repeat('0', 64));
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('A download that does not match the SHA-256 was accepted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('does not match the expected SHA-256', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
     }
 
     public function testDownloadWithInvalidUrl(): void
