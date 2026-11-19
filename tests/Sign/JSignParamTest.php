@@ -19,6 +19,16 @@ class JSignParamTest extends TestCase
         );
     }
 
+    public function testUsesJre21013AsTheDefaultJavaRuntime(): void
+    {
+        $params = JSignParam::instance();
+
+        $this->assertSame(
+            'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz',
+            $params->getJavaDownloadUrl()
+        );
+    }
+
     #[DataProvider('providerValuesThatLookLikeAPasswordOption')]
     public function testKeepsAValueThatLooksLikeAPasswordOptionInTheParameters(string $value): void
     {
