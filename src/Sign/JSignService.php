@@ -286,7 +286,7 @@ class JSignService
         $jSignPdf      = $this->jSignPdfInvocation($params);
         $pdf           = escapeshellarg($pdf);
         $certificate   = escapeshellarg($certificate);
-        $pathPdfSigned = escapeshellarg($params->getPathPdfSigned());
+        $outDirectory  = escapeshellarg('--out-directory=' . $params->getPathPdfSigned());
         $javaOptions   = implode(' ', array_merge(['-Duser.language=en'], $this->javaOptions($params)));
 
         $passwords = '';
@@ -299,7 +299,7 @@ class JSignService
             $passwords .= "$option - ";
         }
 
-        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$signatureField}{$params->getJSignParameters()} -d $pathPdfSigned 2>&1";
+        return "$java $javaOptions $jSignPdf $pdf -ksf $certificate --enable-stdin-passwords -ksp - {$passwords}{$signatureField}{$params->getJSignParameters()} $outDirectory 2>&1";
     }
 
     /**

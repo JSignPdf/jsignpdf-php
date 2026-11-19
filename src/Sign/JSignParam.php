@@ -26,6 +26,39 @@ class JSignParam
      */
     private const CERTIFICATE_PASSWORD_OPTIONS = ['-ksp' => '--keystore-password'];
 
+    /** @var array<string, string> */
+    private const LONG_OPTIONS = [
+        '-c'    => '--contact',
+        '-cl'   => '--certification-level',
+        '-d'    => '--out-directory',
+        '-ec'   => '--encryption-certificate',
+        '-eng'  => '--engine',
+        '-fs'   => '--font-size',
+        '-ha'   => '--hash-algorithm',
+        '-ka'   => '--key-alias',
+        '-ki'   => '--key-index',
+        '-ksf'  => '--keystore-file',
+        '-kst'  => '--keystore-type',
+        '-l'    => '--location',
+        '-lpf'  => '--load-properties-file',
+        '-o'    => '--option',
+        '-op'   => '--out-prefix',
+        '-os'   => '--out-suffix',
+        '-pe'   => '--encryption',
+        '-pg'   => '--page',
+        '-pl'   => '--pades-level',
+        '-pr'   => '--print-right',
+        '-r'    => '--reason',
+        '-sf'   => '--sig-field',
+        '-sn'   => '--signer-name',
+        '-ta'   => '--tsa-authentication',
+        '-ts'   => '--tsa-server-url',
+        '-tscf' => '--tsa-cert-file',
+        '-tsct' => '--tsa-cert-file-type',
+        '-tsh'  => '--tsa-hash-algorithm',
+        '-tsu'  => '--tsa-user',
+    ];
+
     private const JSIGNPDF_VERSION = '3.2.0';
 
     private const JSIGNPDF_SHA256 = '960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c';
@@ -133,10 +166,19 @@ class JSignParam
         $parameters = [];
         foreach ($this->jSignParameters as $option => $value) {
             $parameters[] = is_string($option)
-                ? escapeshellarg($option) . ' ' . escapeshellarg($value)
+                ? $this->optionWithValue($option, $value)
                 : escapeshellarg($value);
         }
         return implode(' ', $parameters);
+    }
+
+    private function optionWithValue(string $option, string $value): string
+    {
+        $longOption = self::LONG_OPTIONS[$option] ?? $option;
+        if (str_starts_with($longOption, '--')) {
+            return escapeshellarg("$longOption=$value");
+        }
+        return escapeshellarg($option) . ' ' . escapeshellarg($value);
     }
 
     /**

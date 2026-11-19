@@ -193,6 +193,48 @@ class SignPdfTest extends TestCase
         $this->assertStringContainsString('/ByteRange', $signed);
     }
 
+    public function testSignWithOptionValuesThatLookLikeAnOption(): void
+    {
+        $params = $this->params();
+        $params->setJSignParameters([
+            '-kst' => 'PKCS12',
+            '--overwrite',
+            '-V',
+            '--l2-text' => '-tsp',
+            '-r' => '-d',
+            '-l' => '-kst',
+        ]);
+
+        $signed = JSignPDF::instance($params)->sign();
+
+        $this->assertStringContainsString('/ByteRange', $signed);
+        $this->assertStringContainsString('/Reason(-d)', $signed);
+        $this->assertStringContainsString('/Location(-kst)', $signed);
+    }
+
+    public function testSignIntoAnOutputDirectoryNamedLikeAnOption(): void
+    {
+        $workingDirectory = sys_get_temp_dir() . '/jsignpdf-output-' . bin2hex(random_bytes(8));
+        $outputDirectory = $workingDirectory . '/-out';
+        $this->assertTrue(mkdir($outputDirectory, 0700, true));
+        $previousDirectory = getcwd();
+        chdir($workingDirectory);
+
+        try {
+            $params = $this->params();
+            $params->setPathPdfSigned('-out/');
+
+            $signed = JSignPDF::instance($params)->sign();
+
+            $this->assertStringContainsString('/ByteRange', $signed);
+        } finally {
+            chdir($previousDirectory);
+            array_map('unlink', glob($outputDirectory . '/*') ?: []);
+            rmdir($outputDirectory);
+            rmdir($workingDirectory);
+        }
+    }
+
     public function testSignAPdfOlderThan16WithTheDefaultParameters(): void
     {
         $signed = JSignPDF::instance($this->params())->sign();
