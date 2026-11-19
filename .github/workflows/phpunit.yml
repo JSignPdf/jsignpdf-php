@@ -6,7 +6,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: phpunit-${{ github.head_ref || github.run_id }}
+  group: phpunit-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
