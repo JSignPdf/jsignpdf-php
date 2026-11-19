@@ -312,6 +312,47 @@ class SignPdfTest extends TestCase
         $this->assertFalse($customerSignature[0]->isBlank());
     }
 
+    #[DataProvider('providerSignatureFieldNamesThatLookLikeAnOption')]
+    public function testSignsIntoExistingSignatureFieldNamedLikeAnOption(string $fieldName): void
+    {
+        $params = $this->params();
+        $params->setPdf(
+            file_get_contents(__DIR__ . '/../resources/signature-fields-option-names.pdf')
+        );
+        $params->setSignatureField($fieldName);
+        $params->setEnvironmentVariables([
+            'HOME' => '/tmp',
+            'XDG_CONFIG_HOME' => '/tmp/.config',
+            'LANG' => 'C.UTF-8',
+            'LC_ALL' => 'C.UTF-8',
+        ]);
+
+        $signedPdf = JSignPDF::instance($params)->sign();
+
+        $inspectionParams = $this->inspectionParams();
+        $inspectionParams->setPdf($signedPdf);
+
+        $fields = JSignPDF::instance($inspectionParams)->getSignatureFields();
+
+        $signedFields = array_values(
+            array_map(
+                static fn ($field): string => $field->getName(),
+                array_filter($fields, static fn ($field): bool => $field->isSigned())
+            )
+        );
+
+        $this->assertSame([$fieldName], $signedFields);
+    }
+
+    public static function providerSignatureFieldNamesThatLookLikeAnOption(): array
+    {
+        return [
+            ['-d'],
+            ['-tsp'],
+            ['-afoo'],
+        ];
+    }
+
     public function testSignsIntoExistingUnicodeSignatureField(): void
     {
         $params = $this->params();

@@ -292,7 +292,7 @@ class JSignService
         $passwords = '';
         $signatureField = '';
         if ($params->getSignatureField() !== null) {
-            $signatureField = '--sig-field ' . escapeshellarg($params->getSignatureField()) . ' ';
+            $signatureField = escapeshellarg('--sig-field=' . $params->getSignatureField()) . ' ';
         }
 
         foreach (array_keys($params->getPasswords()) as $option) {

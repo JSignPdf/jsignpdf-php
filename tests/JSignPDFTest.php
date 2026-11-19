@@ -740,9 +740,37 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
 
         $this->assertStringContainsString(
-            '--sig-field ' . escapeshellarg("Customer Signature 'Main'"),
+            escapeshellarg("--sig-field=Customer Signature 'Main'"),
             $mockProcCommand
         );
+    }
+
+    #[DataProvider('providerSignatureFieldNamesThatLookLikeAnOption')]
+    public function testSignPassesASignatureFieldThatLooksLikeAnOptionAsTheValueOfTheOption(string $fieldName): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+
+        $params = $this->withFakeRuntime();
+        $params->setSignatureField($fieldName);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(escapeshellarg('--sig-field=' . $fieldName), $mockProcCommand);
+        $this->assertStringNotContainsString(' ' . escapeshellarg($fieldName) . ' ', $mockProcCommand);
+    }
+
+    public static function providerSignatureFieldNamesThatLookLikeAnOption(): array
+    {
+        return [
+            ['-d'],
+            ['-tsp'],
+            ['-afoo'],
+            ['--out-suffix'],
+        ];
     }
 
     public function testSignDoesNotPassSignatureFieldWhenItIsNotConfigured(): void
