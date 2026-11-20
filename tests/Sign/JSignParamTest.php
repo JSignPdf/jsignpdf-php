@@ -91,10 +91,7 @@ class JSignParamTest extends TestCase
         $params = JSignParam::instance()->setJSignParameters(['--l2-text' => $value]);
 
         $this->assertSame([], $params->getPasswords());
-        $this->assertSame(
-            escapeshellarg('--l2-text') . ' ' . escapeshellarg($value),
-            $params->getJSignParameters()
-        );
+        $this->assertSame(escapeshellarg("--l2-text=$value"), $params->getJSignParameters());
     }
 
     public static function providerValuesThatLookLikeAPasswordOption(): array
@@ -113,7 +110,7 @@ class JSignParamTest extends TestCase
 
         $this->assertSame([], $params->getPasswords());
         $this->assertSame(
-            escapeshellarg('--l2-text') . ' ' . escapeshellarg('-tsp') . ' ' . escapeshellarg('-V'),
+            escapeshellarg('--l2-text=-tsp') . ' ' . escapeshellarg('-V'),
             $params->getJSignParameters()
         );
     }
@@ -123,9 +120,38 @@ class JSignParamTest extends TestCase
         $params = JSignParam::instance()->setJSignParameters(['-a', '-kst' => 'PKCS12']);
 
         $this->assertSame(
-            escapeshellarg('-a') . ' ' . escapeshellarg('-kst') . ' ' . escapeshellarg('PKCS12'),
+            escapeshellarg('-a') . ' ' . escapeshellarg('--keystore-type=PKCS12'),
             $params->getJSignParameters()
         );
+    }
+
+    #[DataProvider('providerOptionsWithAValueThatLooksLikeAnOption')]
+    public function testPassesAnOptionAndItsValueAsASingleArgumentOfTheLongOption(
+        string $option,
+        string $value,
+        string $expected
+    ): void {
+        $params = JSignParam::instance()->setJSignParameters([$option => $value]);
+
+        $this->assertSame(escapeshellarg($expected), $params->getJSignParameters());
+    }
+
+    public static function providerOptionsWithAValueThatLooksLikeAnOption(): array
+    {
+        return [
+            'short option' => ['-r', '-d', '--reason=-d'],
+            'short option with several letters' => ['-ka', '-tsp', '--key-alias=-tsp'],
+            'long option' => ['--sig-field', '-afoo', '--sig-field=-afoo'],
+            'value with an assignment' => ['-o', 'key=-value', '--option=key=-value'],
+            'value with spaces and quotes' => ['--l2-text', "-V 'signed'", "--l2-text=-V 'signed'"],
+        ];
+    }
+
+    public function testKeepsAnOptionWithoutALongNameApartFromItsValue(): void
+    {
+        $params = JSignParam::instance()->setJSignParameters(['-llx' => '-100']);
+
+        $this->assertSame(escapeshellarg('-llx') . ' ' . escapeshellarg('-100'), $params->getJSignParameters());
     }
 
     #[DataProvider('providerPasswords')]
