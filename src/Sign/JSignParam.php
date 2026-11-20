@@ -47,7 +47,7 @@ class JSignParam
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
     private string $jSignPdfPath = '';
-    private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.8%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz';
+    private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz';
     private string $jSignPdfDownloadUrl = '';
     /** @var array<string, string> */
     private array $passwords = [];
