@@ -8,11 +8,14 @@ use InvalidArgumentException;
 use Jeidison\JSignPDF\Runtime\JSignPdfRuntimeService;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use ZipArchive;
 
 class JSignPdfRuntimeServiceTest extends TestCase
 {
     private string $testTmpDir = '';
+    /** @var list<MockWebServer> */
+    private array $servers = [];
 
     protected function setUp(): void
     {
@@ -35,6 +38,7 @@ class JSignPdfRuntimeServiceTest extends TestCase
     {
         $server = new MockWebServer();
         $server->start();
+        $this->servers[] = $server;
         $server->setResponseOfPath(
             '/' . $filename,
             new Response(file_get_contents($zipPath)),
@@ -219,6 +223,127 @@ class JSignPdfRuntimeServiceTest extends TestCase
         $this->assertEquals($this->testTmpDir, $service->getPath($jsignParam));
     }
 
+    public function testDownloadMatchingTheGivenSha256IsInstalled(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, strtoupper($sha256));
+
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/jsignpdf.jar');
+    }
+
+    public function testDownloadNotMatchingTheGivenSha256IsNotInstalled(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'tampered jar content']);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, str_repeat('0', 64));
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('A download that does not match the SHA-256 was accepted.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('does not match the expected SHA-256', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
+    }
+
+    public function testDownloadsAgainWhenTheInstalledVersionWasNotCheckedAgainstTheGivenSha256(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+        mkdir($this->testTmpDir . '/install/lib', 0755, true);
+        touch($this->testTmpDir . '/install/.jsignpdf_version_jsignpdf-3.2.0.zip');
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url, $sha256);
+
+        (new JSignPdfRuntimeService())->getPath($jsignParam);
+
+        $this->assertFileExists($this->testTmpDir . '/install/lib/jsignpdf.jar');
+    }
+
+    public function testDoesNotDownloadAgainAVersionCheckedAgainstTheGivenSha256(): void
+    {
+        $zipPath = $this->testTmpDir . '/source.zip';
+        $this->createZip($zipPath, 'jsignpdf-3.2.0', ['lib/jsignpdf.jar' => 'fake jar content']);
+        $sha256 = hash_file('sha256', $zipPath);
+        $url = $this->serve($zipPath, 'jsignpdf-3.2.0.zip');
+        unlink($zipPath);
+        $firstParams = new JSignParam();
+        $firstParams->setJSignPdfPath($this->testTmpDir . '/install');
+        $firstParams->setJSignPdfDownloadUrl($url, $sha256);
+        (new JSignPdfRuntimeService())->getPath($firstParams);
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
+
+        $secondParams = new JSignParam();
+        $secondParams->setJSignPdfPath($this->testTmpDir . '/install');
+        $secondParams->setJSignPdfDownloadUrl($url, $sha256);
+
+        $this->assertSame($this->testTmpDir . '/install', (new JSignPdfRuntimeService())->getPath($secondParams));
+    }
+
+    public function testDownloadRejectsAnHttpErrorResponse(): void
+    {
+        $server = new MockWebServer();
+        $server->start();
+        $this->servers[] = $server;
+        $server->setResponseOfPath('/jsignpdf.zip', new Response('not found', [], 404));
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($server->getServerRoot() . '/jsignpdf.zip');
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('An HTTP error response was accepted as the JSignPdf package.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
+    }
+
+    public function testDownloadLeavesNothingBehindWhenItFails(): void
+    {
+        $server = new MockWebServer();
+        $server->start();
+        $url = $server->getServerRoot() . '/jsignpdf.zip';
+        $server->stop();
+
+        $jsignParam = new JSignParam();
+        $jsignParam->setJSignPdfPath($this->testTmpDir . '/install');
+        $jsignParam->setJSignPdfDownloadUrl($url);
+
+        try {
+            (new JSignPdfRuntimeService())->getPath($jsignParam);
+            $this->fail('A failed download was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir . '/install'), ['.', '..'])));
+    }
+
     public function testDownloadWithInvalidUrl(): void
     {
         $jsignParam = new JSignParam();
@@ -248,6 +373,9 @@ class JSignPdfRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        foreach ($this->servers as $server) {
+            $server->stop();
+        }
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_zip_dir_*', GLOB_ONLYDIR);
 
         foreach ($dirs as $dir) {

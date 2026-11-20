@@ -50,9 +50,13 @@ $param->setJSignPdfPath('/path/to/jsignpdf');
 ```
 With specific Java or JSignPdf version:
 ```php
-$params->getJSignPdfDownloadUrl('the url to download the zip here');
-$params->setJavaDownloadUrl('the url to download the .tar.gz here');
+$params->setJSignPdfDownloadUrl('the url to download the zip here', 'its sha256 here');
+$params->setJavaDownloadUrl('the url to download the .tar.gz here', 'its sha256 here');
 ```
+
+The default JRE and JSignPdf downloads are checked against a pinned SHA-256
+before they are extracted. A custom URL is only checked when its SHA-256 is
+given as the second argument, so pass it whenever the release publishes one.
 
 Without JSignPDF bin:
 ```bash

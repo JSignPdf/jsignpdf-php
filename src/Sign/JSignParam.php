@@ -28,6 +28,12 @@ class JSignParam
 
     private const JSIGNPDF_VERSION = '3.2.0';
 
+    private const JSIGNPDF_SHA256 = '960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c';
+
+    private const JAVA_DOWNLOAD_URL = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz';
+
+    private const JAVA_SHA256 = 'a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd';
+
     /** @var array<array-key, string> */
     private const DEFAULT_JSIGN_PARAMETERS = ['-a', '-kst' => 'PKCS12'];
 
@@ -47,8 +53,10 @@ class JSignParam
     private string $tempName = '';
     private bool $isOutputTypeBase64 = false;
     private string $jSignPdfPath = '';
-    private string $javaDownloadUrl = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz';
+    private string $javaDownloadUrl = self::JAVA_DOWNLOAD_URL;
+    private string $javaDownloadSha256 = self::JAVA_SHA256;
     private string $jSignPdfDownloadUrl = '';
+    private string $jSignPdfDownloadSha256 = self::JSIGNPDF_SHA256;
     /** @var array<string, string> */
     private array $passwords = [];
     /** @var array<string, string> */
@@ -378,10 +386,18 @@ class JSignParam
         return $this->getTempPath() . $this->getTempName('.pfx');
     }
 
-    public function setJavaDownloadUrl(string $url): self
+    public function setJavaDownloadUrl(string $url, string $sha256 = ''): self
     {
         $this->javaDownloadUrl = $url;
+        $this->javaDownloadSha256 = $sha256 === '' && $url === self::JAVA_DOWNLOAD_URL
+            ? self::JAVA_SHA256
+            : $this->validSha256($sha256);
         return $this;
+    }
+
+    public function getJavaDownloadSha256(): string
+    {
+        return $this->javaDownloadSha256;
     }
 
     public function getJavaDownloadUrl(): string
@@ -389,10 +405,26 @@ class JSignParam
         return $this->javaDownloadUrl;
     }
 
-    public function setJSignPdfDownloadUrl(string $url): self
+    public function setJSignPdfDownloadUrl(string $url, string $sha256 = ''): self
     {
         $this->jSignPdfDownloadUrl = $url;
+        $this->jSignPdfDownloadSha256 = $sha256 === '' && $url === self::buildJSignPdfDownloadUrl()
+            ? self::JSIGNPDF_SHA256
+            : $this->validSha256($sha256);
         return $this;
+    }
+
+    public function getJSignPdfDownloadSha256(): string
+    {
+        return $this->jSignPdfDownloadSha256;
+    }
+
+    private function validSha256(string $sha256): string
+    {
+        if ($sha256 !== '' && preg_match('/^[0-9a-f]{64}$/i', $sha256) !== 1) {
+            throw new InvalidArgumentException('The SHA-256 must have 64 hexadecimal characters.');
+        }
+        return strtolower($sha256);
     }
 
     public function getJSignPdfDownloadUrl(): string

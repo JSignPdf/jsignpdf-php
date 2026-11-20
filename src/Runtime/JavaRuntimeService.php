@@ -38,7 +38,7 @@ class JavaRuntimeService
                 }
             }
             if (!self::validateVersion($params)) {
-                self::downloadAndExtract($downloadUrl, $javaPath);
+                self::downloadAndExtract($downloadUrl, $params->getJavaDownloadSha256(), $javaPath);
             }
             $params->setJavaDownloadUrl('');
             $params->setJavaPath($javaPath);
@@ -55,11 +55,16 @@ class JavaRuntimeService
         if (!is_string($baseDir)) {
             throw new InvalidArgumentException('Invalid JsignParamPath');
         }
-        $lastVersion = $baseDir . '/.java_version_' . basename($params->getJavaDownloadUrl());
+        $lastVersion = $baseDir . '/' . $this->versionMarker($params->getJavaDownloadUrl(), $params->getJavaDownloadSha256());
         return file_exists($lastVersion);
     }
 
-    private function downloadAndExtract(string $url, string $baseDir): void
+    private function versionMarker(string $url, string $sha256): string
+    {
+        return '.java_version_' . basename($url) . ($sha256 === '' ? '' : '.' . $sha256);
+    }
+
+    private function downloadAndExtract(string $url, string $sha256, string $baseDir): void
     {
         $baseDir = preg_replace('/\/bin\/java$/', '', $baseDir);
         if (!is_string($baseDir)) {
@@ -76,6 +81,7 @@ class JavaRuntimeService
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
         $this->chunkDownload($url, $baseDir . '/java.tar.gz');
+        $this->verifySha256($baseDir . '/java.tar.gz', $sha256, $url);
         try {
             $tar = new PharData($baseDir . '/java.tar.gz');
         } catch (PharException|UnexpectedValueException $e) {
@@ -90,7 +96,7 @@ class JavaRuntimeService
         @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
         @exec('rm -f ' . escapeshellarg($baseDir) . '/.java_version_*');
         unlink($baseDir . '/java.tar.gz');
-        touch($baseDir . '/.java_version_' . basename($url));
+        touch($baseDir . '/' . $this->versionMarker($url, $sha256));
         if (!file_exists($baseDir . '/bin/java')) {
             throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
         }
@@ -119,24 +125,37 @@ class JavaRuntimeService
 
     private function chunkDownload(string $url, string $destination): void
     {
-        $fp = fopen($destination, 'w');
+        $file = fopen($destination, 'w');
+        if ($file === false) {
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        $curl = curl_init($url);
+        if ($curl === false) {
+            fclose($file);
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        curl_setopt($curl, CURLOPT_FILE, $file);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        $downloaded = curl_exec($curl);
+        $error = curl_error($curl);
+        fclose($file);
+        if ($downloaded === false) {
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url . ': ' . $error);
+        }
+    }
 
-        if ($fp) {
-            $ch = curl_init($url);
-            if ($ch === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FILE, $fp);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            $response = curl_exec($ch);
-            if ($response === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_close($ch);
-            fclose($fp);
-        } else {
-            throw new InvalidArgumentException("Failute to download file using the url $url");
+    private function verifySha256(string $path, string $sha256, string $url): void
+    {
+        if ($sha256 === '') {
+            return;
+        }
+        $downloadedSha256 = hash_file('sha256', $path);
+        if ($downloadedSha256 === false || !hash_equals($sha256, $downloadedSha256)) {
+            unlink($path);
+            throw new RuntimeException('The file downloaded from ' . $url . ' does not match the expected SHA-256.');
         }
     }
 }

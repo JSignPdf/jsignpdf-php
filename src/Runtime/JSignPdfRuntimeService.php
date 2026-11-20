@@ -47,8 +47,13 @@ class JSignPdfRuntimeService
     private function validateVersion(JSignParam $params): bool
     {
         $baseDir = $params->getJSignPdfPath();
-        $versionCacheFile = $baseDir . '/.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl());
-        return file_exists($versionCacheFile);
+        return file_exists($baseDir . '/' . $this->versionMarker($params));
+    }
+
+    private function versionMarker(JSignParam $params): string
+    {
+        $sha256 = $params->getJSignPdfDownloadSha256();
+        return '.jsignpdf_version_' . basename($params->getJSignPdfDownloadUrl()) . ($sha256 === '' ? '' : '.' . $sha256);
     }
 
     private function downloadAndExtract(JSignParam $params): void
@@ -66,6 +71,7 @@ class JSignPdfRuntimeService
             throw new InvalidArgumentException('The url to download Java is invalid: ' . $url);
         }
         $this->chunkDownload($url, $baseDir . '/jsignpdf.zip');
+        $this->verifySha256($baseDir . '/jsignpdf.zip', $params->getJSignPdfDownloadSha256(), $url);
         $zip = new ZipArchive();
         $ok = $zip->open($baseDir . '/jsignpdf.zip');
         if ($ok !== true) {
@@ -90,7 +96,7 @@ class JSignPdfRuntimeService
         if (!self::isInstalled($baseDir)) {
             throw new RuntimeException('JSignPdf not found at: ' . $baseDir);
         }
-        touch($baseDir . '/.jsignpdf_version_' . basename($url));
+        touch($baseDir . '/' . $this->versionMarker($params));
     }
 
     private function archiveRoot(string $staging): string
@@ -139,24 +145,37 @@ class JSignPdfRuntimeService
 
     private function chunkDownload(string $url, string $destination): void
     {
-        $fp = fopen($destination, 'w');
+        $file = fopen($destination, 'w');
+        if ($file === false) {
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        $curl = curl_init($url);
+        if ($curl === false) {
+            fclose($file);
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url);
+        }
+        curl_setopt($curl, CURLOPT_FILE, $file);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        $downloaded = curl_exec($curl);
+        $error = curl_error($curl);
+        fclose($file);
+        if ($downloaded === false) {
+            unlink($destination);
+            throw new InvalidArgumentException('Failure to download file using the url ' . $url . ': ' . $error);
+        }
+    }
 
-        if ($fp) {
-            $ch = curl_init($url);
-            if ($ch === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FILE, $fp);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            $response = curl_exec($ch);
-            if ($response === false) {
-                throw new InvalidArgumentException('Failure to download file using the url ' . $url);
-            }
-            curl_close($ch);
-            fclose($fp);
-        } else {
-            throw new InvalidArgumentException("Failute to download file using the url $url");
+    private function verifySha256(string $path, string $sha256, string $url): void
+    {
+        if ($sha256 === '') {
+            return;
+        }
+        $downloadedSha256 = hash_file('sha256', $path);
+        if ($downloadedSha256 === false || !hash_equals($sha256, $downloadedSha256)) {
+            unlink($path);
+            throw new RuntimeException('The file downloaded from ' . $url . ' does not match the expected SHA-256.');
         }
     }
 }

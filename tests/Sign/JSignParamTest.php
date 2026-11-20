@@ -29,6 +29,62 @@ class JSignParamTest extends TestCase
         );
     }
 
+    public function testPinsTheSha256OfTheDefaultDownloads(): void
+    {
+        $params = JSignParam::instance();
+
+        $this->assertSame('a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd', $params->getJavaDownloadSha256());
+        $this->assertSame('960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c', $params->getJSignPdfDownloadSha256());
+    }
+
+    public function testACustomDownloadUrlDoesNotKeepTheSha256OfTheDefaultOne(): void
+    {
+        $params = JSignParam::instance()
+            ->setJavaDownloadUrl('https://example.com/java.tar.gz')
+            ->setJSignPdfDownloadUrl('https://example.com/jsignpdf.zip');
+
+        $this->assertSame('', $params->getJavaDownloadSha256());
+        $this->assertSame('', $params->getJSignPdfDownloadSha256());
+    }
+
+    public function testSettingTheDefaultDownloadUrlAgainKeepsItsSha256(): void
+    {
+        $params = JSignParam::instance();
+        $params
+            ->setJavaDownloadUrl($params->getJavaDownloadUrl())
+            ->setJSignPdfDownloadUrl($params->getJSignPdfDownloadUrl());
+
+        $this->assertSame('a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd', $params->getJavaDownloadSha256());
+        $this->assertSame('960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c', $params->getJSignPdfDownloadSha256());
+    }
+
+    public function testKeepsTheSha256GivenWithACustomDownloadUrl(): void
+    {
+        $sha256 = str_repeat('AB', 32);
+        $params = JSignParam::instance()
+            ->setJavaDownloadUrl('https://example.com/java.tar.gz', $sha256)
+            ->setJSignPdfDownloadUrl('https://example.com/jsignpdf.zip', $sha256);
+
+        $this->assertSame(strtolower($sha256), $params->getJavaDownloadSha256());
+        $this->assertSame(strtolower($sha256), $params->getJSignPdfDownloadSha256());
+    }
+
+    #[DataProvider('providerInvalidSha256')]
+    public function testRejectsAnInvalidSha256(string $sha256): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        JSignParam::instance()->setJavaDownloadUrl('https://example.com/java.tar.gz', $sha256);
+    }
+
+    public static function providerInvalidSha256(): array
+    {
+        return [
+            'too short' => [str_repeat('a', 63)],
+            'not hexadecimal' => [str_repeat('g', 64)],
+            'with the file name' => [str_repeat('a', 64) . '  java.tar.gz'],
+        ];
+    }
+
     #[DataProvider('providerValuesThatLookLikeAPasswordOption')]
     public function testKeepsAValueThatLooksLikeAPasswordOptionInTheParameters(string $value): void
     {

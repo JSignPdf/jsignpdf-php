@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 class JavaRuntimeServiceTest extends TestCase
 {
     public string $testTmpDir = '';
+    private ?MockWebServer $server = null;
     protected function setUp(): void
     {
         $this->testTmpDir = sys_get_temp_dir() . '/jsignpdf_temp_dir_' . uniqid();
@@ -195,6 +196,127 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertEquals($jsignParam->getJavaPath(), $javaPath);
     }
 
+    public function testGetPathInstallsADownloadMatchingTheGivenSha256(): void
+    {
+        [$url, $sha256] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'java']);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url, $sha256);
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('java', file_get_contents($this->testTmpDir . '/bin/java'));
+    }
+
+    public function testGetPathRejectsADownloadNotMatchingTheGivenSha256(): void
+    {
+        [$url] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'tampered java']);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url, str_repeat('0', 64));
+
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+            $this->fail('A download that does not match the SHA-256 was accepted.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('does not match the expected SHA-256', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
+    }
+
+    public function testGetPathDownloadsAgainWhenTheInstalledVersionWasNotCheckedAgainstTheGivenSha256(): void
+    {
+        [$url, $sha256] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'java']);
+        touch($this->testTmpDir . '/.java_version_' . basename($url));
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url, $sha256);
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('java', file_get_contents($this->testTmpDir . '/bin/java'));
+    }
+
+    public function testGetPathDoesNotDownloadAgainAVersionCheckedAgainstTheGivenSha256(): void
+    {
+        [$url, $sha256] = $this->serveJavaPackage(['jdk-21.0.13+9-jre/bin/java' => 'java']);
+        $firstParams = new JSignParam();
+        $firstParams->setJavaPath($this->testTmpDir . '/bin/java');
+        $firstParams->setJavaDownloadUrl($url, $sha256);
+        (new JavaRuntimeService())->getPath($firstParams);
+        $this->server?->stop();
+
+        $secondParams = new JSignParam();
+        $secondParams->setJavaPath($this->testTmpDir . '/bin/java');
+        $secondParams->setJavaDownloadUrl($url, $sha256);
+
+        $this->assertSame($this->testTmpDir . '/bin/java', (new JavaRuntimeService())->getPath($secondParams));
+    }
+
+    public function testGetPathRejectsAnHttpErrorResponse(): void
+    {
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $this->server->setResponseOfPath('/java.tar.gz', new Response('not found', [], 404));
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($this->server->getServerRoot() . '/java.tar.gz');
+
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+            $this->fail('An HTTP error response was accepted as the Java package.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
+    }
+
+    public function testGetPathLeavesNothingBehindWhenTheDownloadFails(): void
+    {
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $url = $this->server->getServerRoot() . '/java.tar.gz';
+        $this->server->stop();
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+            $this->fail('A failed download was accepted.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertStringContainsString('Failure to download', $exception->getMessage());
+        }
+
+        $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
+    }
+
+    /**
+     * @param array<string, string> $files
+     * @return array{string, string}
+     */
+    private function serveJavaPackage(array $files): array
+    {
+        $tarPath = sys_get_temp_dir() . '/jsignpdf_temp_package_' . uniqid() . '.tar';
+        $tar = new PharData($tarPath);
+        foreach ($files as $path => $content) {
+            $tar->addFromString($path, $content);
+        }
+        $content = (string) gzencode((string) file_get_contents($tarPath));
+        unset($tar);
+        unlink($tarPath);
+
+        $this->server = new MockWebServer();
+        $this->server->start();
+        $this->server->setResponseOfPath('/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', new Response($content));
+        return [
+            $this->server->getServerRoot() . '/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz',
+            hash('sha256', $content),
+        ];
+    }
+
     public function testGetPathWithoutJavaFallback(): void
     {
         mkdir($this->testTmpDir . '/bin', 0755, true);
@@ -210,6 +332,7 @@ class JavaRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->server?->stop();
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_temp_*', GLOB_ONLYDIR);
 
         foreach ($dirs as $dir) {
