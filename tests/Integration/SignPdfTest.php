@@ -212,6 +212,30 @@ class SignPdfTest extends TestCase
         $this->assertStringContainsString('/Location(-kst)', $signed);
     }
 
+    #[DataProvider('providerParametersRejectedByJSignPdf')]
+    public function testSigningWithParametersRejectedByJSignPdfFailsWithItsMessage(
+        array $parameters,
+        string $message
+    ): void {
+        $params = $this->params();
+        $params->setJSignParameters($parameters);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage($message);
+
+        JSignPDF::instance($params)->sign();
+    }
+
+    public static function providerParametersRejectedByJSignPdf(): array
+    {
+        return [
+            'unknown long option' => [['--keystore-typo' => 'PKCS12'], 'Unrecognized option: --keystore-typo=PKCS12'],
+            'unknown short option' => [['-kstt' => 'PKCS12'], 'Unrecognized option: -kstt'],
+            'flag given a value' => [['--overwrite' => 'yes'], 'Unrecognized option: --overwrite=yes'],
+            'option that takes a value given as a flag' => [['-kst'], 'Missing argument for option: kst'],
+        ];
+    }
+
     public function testSignIntoAnOutputDirectoryNamedLikeAnOption(): void
     {
         $workingDirectory = sys_get_temp_dir() . '/jsignpdf-output-' . bin2hex(random_bytes(8));
