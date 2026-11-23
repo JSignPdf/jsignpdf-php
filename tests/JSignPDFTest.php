@@ -430,7 +430,11 @@ class JSignPDFTest extends TestCase
         $this->assertStringContainsString(escapeshellarg('vfs://download/jvava/bin/java'), $mockProcCommand);
         $this->assertStringContainsString(escapeshellarg($params->getTempPdfPath()), $mockProcCommand);
         $this->assertStringContainsString('-ksf ' . escapeshellarg($params->getTempCertificatePath()), $mockProcCommand);
-        $this->assertStringContainsString('-d ' . escapeshellarg($params->getPathPdfSigned()), $mockProcCommand);
+        $this->assertStringContainsString(
+            escapeshellarg('--out-directory=' . $params->getPathPdfSigned()),
+            $mockProcCommand
+        );
+        $this->assertStringNotContainsString(' -d ', $mockProcCommand);
     }
 
     public function testSignPassesCustomJavaOptionsToTheJvm(): void
@@ -531,12 +535,14 @@ class JSignPDFTest extends TestCase
 
         $this->service->sign($params);
 
-        foreach ($options as $option => $value) {
-            $this->assertStringContainsString(
-                escapeshellarg($option) . ' ' . escapeshellarg($value),
-                $mockProcCommand
-            );
-        }
+        $this->assertStringContainsString(
+            implode(' ', array_map('escapeshellarg', [
+                '--keystore-type=PKCS12',
+                '--tsa-server-url=https://tsa.example/tsr?first=1&second=2',
+                "--option=reason with space, ' quote and ; semicolon",
+            ])),
+            $mockProcCommand
+        );
     }
 
     public function testAddJSignParametersAppendsToTheDefaultOptions(): void
@@ -552,8 +558,7 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
 
         $this->assertStringContainsString(
-            escapeshellarg('-a') . ' ' . escapeshellarg('-kst') . ' ' . escapeshellarg('PKCS12')
-                . ' ' . escapeshellarg('-ha') . ' ' . escapeshellarg('SHA512'),
+            implode(' ', array_map('escapeshellarg', ['-a', '--keystore-type=PKCS12', '--hash-algorithm=SHA512'])),
             $mockProcCommand
         );
     }
@@ -638,7 +643,13 @@ class JSignPDFTest extends TestCase
         $this->assertStringContainsString('--enable-stdin-passwords -ksp - -tsp - ', $mockProcCommand);
         $this->assertStringNotContainsString('tsa secret', $mockProcCommand);
         $this->assertStringContainsString(
-            implode(' ', array_map('escapeshellarg', ['-kst', 'PKCS12', '--overwrite', '-ts', 'https://tsa.example/tsr', '-ta', 'PASSWORD', '-tsu', 'jhon'])),
+            implode(' ', array_map('escapeshellarg', [
+                '--keystore-type=PKCS12',
+                '--overwrite',
+                '--tsa-server-url=https://tsa.example/tsr',
+                '--tsa-authentication=PASSWORD',
+                '--tsa-user=jhon',
+            ])),
             $mockProcCommand
         );
         $this->assertEquals(
@@ -762,9 +773,37 @@ class JSignPDFTest extends TestCase
         $this->service->sign($params);
 
         $this->assertStringContainsString(
-            '--sig-field ' . escapeshellarg("Customer Signature 'Main'"),
+            escapeshellarg("--sig-field=Customer Signature 'Main'"),
             $mockProcCommand
         );
+    }
+
+    #[DataProvider('providerSignatureFieldNamesThatLookLikeAnOption')]
+    public function testSignPassesASignatureFieldThatLooksLikeAnOptionAsTheValueOfTheOption(string $fieldName): void
+    {
+        global $mockExec, $mockProcCommand;
+        $mockExec = ['Finished: Signature succesfully created.'];
+
+        $params = $this->withFakeRuntime();
+        $params->setSignatureField($fieldName);
+        $params->setCertificate($this->getNewCert($params->getPassword()));
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $this->assertStringContainsString(escapeshellarg('--sig-field=' . $fieldName), $mockProcCommand);
+        $this->assertStringNotContainsString(' ' . escapeshellarg($fieldName) . ' ', $mockProcCommand);
+    }
+
+    public static function providerSignatureFieldNamesThatLookLikeAnOption(): array
+    {
+        return [
+            ['-d'],
+            ['-tsp'],
+            ['-afoo'],
+            ['--out-suffix'],
+        ];
     }
 
     public function testSignDoesNotPassSignatureFieldWhenItIsNotConfigured(): void

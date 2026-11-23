@@ -193,6 +193,72 @@ class SignPdfTest extends TestCase
         $this->assertStringContainsString('/ByteRange', $signed);
     }
 
+    public function testSignWithOptionValuesThatLookLikeAnOption(): void
+    {
+        $params = $this->params();
+        $params->setJSignParameters([
+            '-kst' => 'PKCS12',
+            '--overwrite',
+            '-V',
+            '--l2-text' => '-tsp',
+            '-r' => '-d',
+            '-l' => '-kst',
+        ]);
+
+        $signed = JSignPDF::instance($params)->sign();
+
+        $this->assertStringContainsString('/ByteRange', $signed);
+        $this->assertStringContainsString('/Reason(-d)', $signed);
+        $this->assertStringContainsString('/Location(-kst)', $signed);
+    }
+
+    #[DataProvider('providerParametersRejectedByJSignPdf')]
+    public function testSigningWithParametersRejectedByJSignPdfFailsWithItsMessage(
+        array $parameters,
+        string $message
+    ): void {
+        $params = $this->params();
+        $params->setJSignParameters($parameters);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage($message);
+
+        JSignPDF::instance($params)->sign();
+    }
+
+    public static function providerParametersRejectedByJSignPdf(): array
+    {
+        return [
+            'unknown long option' => [['--keystore-typo' => 'PKCS12'], 'Unrecognized option: --keystore-typo=PKCS12'],
+            'unknown short option' => [['-kstt' => 'PKCS12'], 'Unrecognized option: -kstt'],
+            'flag given a value' => [['--overwrite' => 'yes'], 'Unrecognized option: --overwrite=yes'],
+            'option that takes a value given as a flag' => [['-kst'], 'Missing argument for option: kst'],
+        ];
+    }
+
+    public function testSignIntoAnOutputDirectoryNamedLikeAnOption(): void
+    {
+        $workingDirectory = sys_get_temp_dir() . '/jsignpdf-output-' . bin2hex(random_bytes(8));
+        $outputDirectory = $workingDirectory . '/-out';
+        $this->assertTrue(mkdir($outputDirectory, 0700, true));
+        $previousDirectory = getcwd();
+        chdir($workingDirectory);
+
+        try {
+            $params = $this->params();
+            $params->setPathPdfSigned('-out/');
+
+            $signed = JSignPDF::instance($params)->sign();
+
+            $this->assertStringContainsString('/ByteRange', $signed);
+        } finally {
+            chdir($previousDirectory);
+            array_map('unlink', glob($outputDirectory . '/*') ?: []);
+            rmdir($outputDirectory);
+            rmdir($workingDirectory);
+        }
+    }
+
     public function testSignAPdfOlderThan16WithTheDefaultParameters(): void
     {
         $signed = JSignPDF::instance($this->params())->sign();
@@ -310,6 +376,47 @@ class SignPdfTest extends TestCase
         $this->assertCount(1, $customerSignature);
         $this->assertTrue($customerSignature[0]->isSigned());
         $this->assertFalse($customerSignature[0]->isBlank());
+    }
+
+    #[DataProvider('providerSignatureFieldNamesThatLookLikeAnOption')]
+    public function testSignsIntoExistingSignatureFieldNamedLikeAnOption(string $fieldName): void
+    {
+        $params = $this->params();
+        $params->setPdf(
+            file_get_contents(__DIR__ . '/../resources/signature-fields-option-names.pdf')
+        );
+        $params->setSignatureField($fieldName);
+        $params->setEnvironmentVariables([
+            'HOME' => '/tmp',
+            'XDG_CONFIG_HOME' => '/tmp/.config',
+            'LANG' => 'C.UTF-8',
+            'LC_ALL' => 'C.UTF-8',
+        ]);
+
+        $signedPdf = JSignPDF::instance($params)->sign();
+
+        $inspectionParams = $this->inspectionParams();
+        $inspectionParams->setPdf($signedPdf);
+
+        $fields = JSignPDF::instance($inspectionParams)->getSignatureFields();
+
+        $signedFields = array_values(
+            array_map(
+                static fn ($field): string => $field->getName(),
+                array_filter($fields, static fn ($field): bool => $field->isSigned())
+            )
+        );
+
+        $this->assertSame([$fieldName], $signedFields);
+    }
+
+    public static function providerSignatureFieldNamesThatLookLikeAnOption(): array
+    {
+        return [
+            ['-d'],
+            ['-tsp'],
+            ['-afoo'],
+        ];
     }
 
     public function testSignsIntoExistingUnicodeSignatureField(): void
