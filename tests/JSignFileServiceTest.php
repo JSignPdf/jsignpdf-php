@@ -14,12 +14,17 @@ function fopen(string $filename, string $mode)
 
 function fwrite($stream, string $data)
 {
-    global $failingWrite;
+    global $failingWrite, $throwingWrite;
+    if ($throwingWrite) {
+        \fwrite($stream, substr($data, 0, 1));
+        throw new \ErrorException('fwrite(): Write of ' . strlen($data) . ' bytes failed with errno=28 No space left on device');
+    }
     return $failingWrite ? 0 : \fwrite($stream, $data);
 }
 
 namespace Jeidison\JSignPDF\Tests;
 
+use ErrorException;
 use Jeidison\JSignPDF\JSignFileService;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -30,9 +35,10 @@ class JSignFileServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        global $handleOpenedOnCreation, $failingWrite;
+        global $handleOpenedOnCreation, $failingWrite, $throwingWrite;
         $handleOpenedOnCreation = false;
         $failingWrite = false;
+        $throwingWrite = false;
         $this->directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'jsignpdf_' . bin2hex(random_bytes(8)) . DIRECTORY_SEPARATOR;
         mkdir($this->directory, 0700);
     }
@@ -87,6 +93,21 @@ class JSignFileServiceTest extends TestCase
             $this->fail('A failed write was reported as success.');
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('certificate.pfx', $exception->getMessage());
+        }
+
+        $this->assertSame([], glob($this->directory . '*'));
+    }
+
+    public function testStoreFileLeavesNothingBehindWhenTheWriteThrows(): void
+    {
+        global $throwingWrite;
+        $throwingWrite = true;
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('A throwing write was reported as success.');
+        } catch (ErrorException $exception) {
+            $this->assertStringContainsString('No space left on device', $exception->getMessage());
         }
 
         $this->assertSame([], glob($this->directory . '*'));

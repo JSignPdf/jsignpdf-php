@@ -3,6 +3,7 @@
 namespace Jeidison\JSignPDF;
 
 use RuntimeException;
+use Throwable;
 
 /**
  * @author Jeidison Farias <jeidison.farias@gmail.com>
@@ -33,7 +34,7 @@ class JSignFileService
         fclose($reservation);
         try {
             $this->replaceWithPrivateFile($path, $filename, $content);
-        } catch (RuntimeException $exception) {
+        } catch (Throwable $exception) {
             $this->deleteFile($filename);
             throw $exception;
         }
@@ -50,14 +51,26 @@ class JSignFileService
             }
             throw new RuntimeException('Failure to create the temporary file: ' . $filename);
         }
-        $file = fopen($privateFilename, 'w');
-        $written = $file === false ? false : fwrite($file, $content);
-        if ($file !== false) {
-            fclose($file);
-        }
-        if ($written !== strlen($content) || !@rename($privateFilename, $filename)) {
+        try {
+            if (!$this->writeFile($privateFilename, $content) || !@rename($privateFilename, $filename)) {
+                throw new RuntimeException('Failure to write the temporary file: ' . $filename);
+            }
+        } catch (Throwable $exception) {
             $this->deleteFile($privateFilename);
-            throw new RuntimeException('Failure to write the temporary file: ' . $filename);
+            throw $exception;
+        }
+    }
+
+    private function writeFile(string $filename, string $content): bool
+    {
+        $file = fopen($filename, 'w');
+        if ($file === false) {
+            return false;
+        }
+        try {
+            return fwrite($file, $content) === strlen($content);
+        } finally {
+            fclose($file);
         }
     }
 
