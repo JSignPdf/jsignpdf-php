@@ -1,5 +1,16 @@
 <?php
 
+namespace Jeidison\JSignPDF\Runtime;
+
+function rename(string $from, string $to): bool
+{
+    global $mockRenameFails;
+    if (is_callable($mockRenameFails) && $mockRenameFails($from, $to)) {
+        return false;
+    }
+    return \rename($from, $to);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use donatj\MockWebServer\MockWebServer;
@@ -10,6 +21,7 @@ use Jeidison\JSignPDF\Runtime\JavaRuntimeService;
 use Jeidison\JSignPDF\Sign\JSignParam;
 use PharData;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class JavaRuntimeServiceTest extends TestCase
 {
@@ -293,6 +305,185 @@ class JavaRuntimeServiceTest extends TestCase
         $this->assertSame([], array_values(array_diff(scandir($this->testTmpDir), ['.', '..'])));
     }
 
+    public function testGetPathInstallsTheDownloadedJava(): void
+    {
+        [$url] = $this->serveJavaPackage([
+            'jdk-21.0.13+9-jre/bin/java' => 'new java',
+            'jdk-21.0.13+9-jre/lib/modules' => 'new modules',
+        ]);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+
+        $javaPath = (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame($this->testTmpDir . '/bin/java', $javaPath);
+        $this->assertSame('new java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('new modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib'],
+            $this->entries($this->testTmpDir)
+        );
+    }
+
+    public function testGetPathReplacesThePreviouslyInstalledJava(): void
+    {
+        $this->installPreviousJava();
+        file_put_contents($this->testTmpDir . '/lib/removed', 'only in the old java');
+        [$url] = $this->serveJavaPackage([
+            'jdk-21.0.13+9-jre/bin/java' => 'new java',
+            'jdk-21.0.13+9-jre/lib/modules' => 'new modules',
+        ]);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('new java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame(['modules'], $this->entries($this->testTmpDir . '/lib'));
+        $this->assertSame('new modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib'],
+            $this->entries($this->testTmpDir)
+        );
+    }
+
+    public function testGetPathRemovesThePreviousJavaEntriesTheNewOneNoLongerShips(): void
+    {
+        $this->installPreviousJava();
+        mkdir($this->testTmpDir . '/man');
+        file_put_contents($this->testTmpDir . '/man/java.1', 'only in the old java');
+        file_put_contents($this->testTmpDir . '/notes.txt', 'not installed by the package');
+        file_put_contents(
+            $this->testTmpDir . '/.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz',
+            "bin\nlib\nman\n"
+        );
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('new java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('new modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib', 'notes.txt'],
+            $this->entries($this->testTmpDir)
+        );
+        $this->assertSame(
+            "bin\nlib\n",
+            file_get_contents($this->testTmpDir . '/.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz')
+        );
+    }
+
+    public function testGetPathKeepsThePreviousJavaEntriesWhenItsInstalledEntriesAreUnknown(): void
+    {
+        $this->installPreviousJava();
+        mkdir($this->testTmpDir . '/man');
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib', 'man'],
+            $this->entries($this->testTmpDir)
+        );
+    }
+
+    public function testGetPathKeepsThePreviousJavaWhenTheDownloadHasNoJavaBinary(): void
+    {
+        $this->installPreviousJava();
+        [$url] = $this->serveJavaPackage([
+            'jdk-21.0.13+9-jre/bin/keytool' => 'new keytool',
+            'jdk-21.0.13+9-jre/lib/modules' => 'new modules',
+        ]);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+
+        $this->assertGetPathFails($jsignParam, '/Java binary not found/');
+        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('old modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz', 'bin', 'lib'],
+            $this->entries($this->testTmpDir)
+        );
+
+        $jsignParam->setJavaDownloadUrl($url);
+        $this->assertGetPathFails($jsignParam, '/Java binary not found/');
+    }
+
+    public function testGetPathRestoresThePreviousJavaWhenTheReplacementFails(): void
+    {
+        $this->installPreviousJava();
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+        $this->failRenames(fn (string $from, string $to): bool => str_contains($from, '/.java_staging_')
+            && str_ends_with($to, '/lib'));
+
+        $this->assertGetPathFails($jsignParam, '/^Failure to replace the Java runtime at: .*\/lib$/');
+
+        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('old modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(['bin', 'lib'], $this->entries($this->testTmpDir));
+    }
+
+    public function testGetPathKeepsThePreviousJavaWhenRestoringItFails(): void
+    {
+        $this->installPreviousJava();
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+        $this->failRenames(fn (string $from, string $to): bool => str_ends_with($to, '/lib')
+            && !str_contains($to, '/.java_previous_'));
+
+        $this->assertGetPathFails(
+            $jsignParam,
+            '/^Failure to replace the Java runtime at: .*\/lib\. The previous Java runtime could not be restored and was kept at: .*\/\.java_previous_[0-9a-f]+$/'
+        );
+
+        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $previousRuntimes = glob($this->testTmpDir . '/.java_previous_*');
+        $this->assertCount(1, $previousRuntimes);
+        $this->assertSame(['lib'], $this->entries($previousRuntimes[0]));
+        $this->assertSame('old modules', file_get_contents($previousRuntimes[0] . '/lib/modules'));
+        $this->assertSame([basename($previousRuntimes[0]), 'bin'], $this->entries($this->testTmpDir));
+    }
+
+    private function paramsDownloadingTheNewJava(): JSignParam
+    {
+        [$url] = $this->serveJavaPackage([
+            'jdk-21.0.13+9-jre/bin/java' => 'new java',
+            'jdk-21.0.13+9-jre/lib/modules' => 'new modules',
+        ]);
+        $jsignParam = new JSignParam();
+        $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
+        $jsignParam->setJavaDownloadUrl($url);
+        return $jsignParam;
+    }
+
+    private function failRenames(callable $renameFails): void
+    {
+        global $mockRenameFails;
+        $mockRenameFails = $renameFails;
+    }
+
+    private function installPreviousJava(): void
+    {
+        mkdir($this->testTmpDir . '/bin', 0755, true);
+        mkdir($this->testTmpDir . '/lib', 0755, true);
+        file_put_contents($this->testTmpDir . '/bin/java', 'old java');
+        file_put_contents($this->testTmpDir . '/lib/modules', 'old modules');
+        touch($this->testTmpDir . '/.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz');
+    }
+
+    private function assertGetPathFails(JSignParam $jsignParam, string $messagePattern): void
+    {
+        try {
+            (new JavaRuntimeService())->getPath($jsignParam);
+        } catch (RuntimeException $exception) {
+            $this->assertMatchesRegularExpression($messagePattern, $exception->getMessage());
+            return;
+        }
+        $this->fail('The Java runtime was expected to fail to install.');
+    }
+
     /**
      * @param array<string, string> $files
      * @return array{string, string}
@@ -317,6 +508,16 @@ class JavaRuntimeServiceTest extends TestCase
         ];
     }
 
+    /**
+     * @return list<string>
+     */
+    private function entries(string $directory): array
+    {
+        $entries = array_values(array_diff(scandir($directory) ?: [], ['.', '..']));
+        sort($entries);
+        return $entries;
+    }
+
     public function testGetPathWithoutJavaFallback(): void
     {
         mkdir($this->testTmpDir . '/bin', 0755, true);
@@ -332,6 +533,7 @@ class JavaRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->failRenames(fn (): bool => false);
         $this->server?->stop();
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_temp_*', GLOB_ONLYDIR);
 

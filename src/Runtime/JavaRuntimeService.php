@@ -85,22 +85,127 @@ class JavaRuntimeService
         try {
             $tar = new PharData($baseDir . '/java.tar.gz');
         } catch (PharException|UnexpectedValueException $e) {
+            $this->deletePath($baseDir . '/java.tar.gz');
             throw new InvalidArgumentException('The file ' . $baseDir . '/java.tar.gz cannot be extracted');
         }
-        $rootDirInsideTar = $this->findRootDir($tar, $baseDir . '/java.tar.gz');
-        if (empty($rootDirInsideTar)) {
-            throw new InvalidArgumentException('Invalid tar content.');
+        $staging = $baseDir . '/.java_staging_' . bin2hex(random_bytes(8));
+        try {
+            $rootDirInsideTar = $this->findRootDir($tar, $baseDir . '/java.tar.gz');
+            if (empty($rootDirInsideTar)) {
+                throw new InvalidArgumentException('Invalid tar content.');
+            }
+            $tar->extractTo(directory: $staging, overwrite: true);
+            $runtime = $staging . '/' . $rootDirInsideTar;
+            if (!is_file($runtime . '/bin/java')) {
+                throw new RuntimeException('Java binary not found in the file downloaded from: ' . $url);
+            }
+            chmod($runtime . '/bin/java', 0700);
+            $entries = array_values(array_diff(scandir($runtime) ?: [], ['.', '..']));
+            $previousEntries = [];
+            foreach (glob($baseDir . '/.java_version_*') ?: [] as $previousVersion) {
+                $previousEntries = array_merge($previousEntries, $this->installedEntries($previousVersion));
+                unlink($previousVersion);
+            }
+            $this->replaceInstall($runtime, $baseDir, $entries, array_diff($previousEntries, $entries));
+        } finally {
+            $this->deletePath($staging);
+            $this->deletePath($baseDir . '/java.tar.gz');
         }
-        $tar->extractTo(directory: $baseDir, overwrite: true);
-        @exec('mv ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar) . '/* ' . escapeshellarg($baseDir));
-        @exec('rm -rf ' . escapeshellarg($baseDir . '/'. $rootDirInsideTar));
-        @exec('rm -f ' . escapeshellarg($baseDir) . '/.java_version_*');
-        unlink($baseDir . '/java.tar.gz');
-        touch($baseDir . '/' . $this->versionMarker($url, $sha256));
-        if (!file_exists($baseDir . '/bin/java')) {
-            throw new RuntimeException('Java binary not found at: ' . $baseDir . '/bin/java');
+        file_put_contents($baseDir . '/' . $this->versionMarker($url, $sha256), implode("\n", $entries) . "\n");
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function installedEntries(string $versionMarker): array
+    {
+        $entries = [];
+        foreach (file($versionMarker, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $entry) {
+            if ($entry === basename($entry) && !in_array($entry, ['.', '..', 'java.tar.gz'], true) && !str_starts_with($entry, '.java_')) {
+                $entries[] = $entry;
+            }
         }
-        chmod($baseDir . '/bin/java', 0700);
+        return $entries;
+    }
+
+    /**
+     * @param list<string> $entries
+     * @param array<string> $obsoleteEntries
+     */
+    private function replaceInstall(string $source, string $baseDir, array $entries, array $obsoleteEntries): void
+    {
+        $previous = $baseDir . '/.java_previous_' . bin2hex(random_bytes(8));
+        if (!mkdir($previous, 0700)) {
+            throw new RuntimeException('Failure to create the folder: ' . $previous);
+        }
+        $movedAside = [];
+        $installed = [];
+        try {
+            foreach ($entries as $entry) {
+                $target = $baseDir . '/' . $entry;
+                if (file_exists($target) || is_link($target)) {
+                    $this->move($target, $previous . '/' . $entry);
+                    $movedAside[] = $entry;
+                }
+                $this->move($source . '/' . $entry, $target);
+                $installed[] = $entry;
+            }
+            foreach ($obsoleteEntries as $entry) {
+                $target = $baseDir . '/' . $entry;
+                if (file_exists($target) || is_link($target)) {
+                    $this->move($target, $previous . '/' . $entry);
+                    $movedAside[] = $entry;
+                }
+            }
+        } catch (RuntimeException $exception) {
+            foreach ($installed as $entry) {
+                $this->deletePath($baseDir . '/' . $entry);
+            }
+            $restored = true;
+            foreach ($movedAside as $entry) {
+                $restored = @rename($previous . '/' . $entry, $baseDir . '/' . $entry) && $restored;
+            }
+            if (!$restored) {
+                throw new RuntimeException(
+                    $exception->getMessage() . '. The previous Java runtime could not be restored and was kept at: ' . $previous,
+                    0,
+                    $exception
+                );
+            }
+            $this->deletePath($previous);
+            throw $exception;
+        }
+        $this->deletePath($previous);
+    }
+
+    private function move(string $source, string $target): void
+    {
+        if (!@rename($source, $target)) {
+            throw new RuntimeException('Failure to replace the Java runtime at: ' . $target);
+        }
+    }
+
+    private function deletePath(string $path): void
+    {
+        if (is_link($path) || is_file($path)) {
+            unlink($path);
+            return;
+        }
+        if (!is_dir($path)) {
+            return;
+        }
+        $contents = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($contents as $item) {
+            if ($item->isDir() && !$item->isLink()) {
+                rmdir($item->getPathname());
+                continue;
+            }
+            unlink($item->getPathname());
+        }
+        rmdir($path);
     }
 
     private function findRootDir(PharData $phar, string $rootDir): string
