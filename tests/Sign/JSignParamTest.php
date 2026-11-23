@@ -9,12 +9,12 @@ use PHPUnit\Framework\TestCase;
 
 class JSignParamTest extends TestCase
 {
-    public function testUsesJSignPdf320AsTheDefaultRuntime(): void
+    public function testUsesJSignPdf321AsTheDefaultRuntime(): void
     {
         $params = JSignParam::instance();
 
         $this->assertSame(
-            'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_2_0/jsignpdf-3.2.0-minimal.zip',
+            'https://github.com/intoolswetrust/jsignpdf/releases/download/JSignPdf_3_2_1/jsignpdf-3.2.1-minimal.zip',
             $params->getJSignPdfDownloadUrl()
         );
     }
@@ -34,7 +34,7 @@ class JSignParamTest extends TestCase
         $params = JSignParam::instance();
 
         $this->assertSame('a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd', $params->getJavaDownloadSha256());
-        $this->assertSame('960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c', $params->getJSignPdfDownloadSha256());
+        $this->assertSame('519ef80502efbc349db62a256f8cd8d4e0c4fbe57984856adb2eed66cebd43b4', $params->getJSignPdfDownloadSha256());
     }
 
     public function testACustomDownloadUrlDoesNotKeepTheSha256OfTheDefaultOne(): void
@@ -55,7 +55,7 @@ class JSignParamTest extends TestCase
             ->setJSignPdfDownloadUrl($params->getJSignPdfDownloadUrl());
 
         $this->assertSame('a535a1df9c6284d9618872984e026ae0352d1f7e9e0605425c0e6114f47351dd', $params->getJavaDownloadSha256());
-        $this->assertSame('960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c', $params->getJSignPdfDownloadSha256());
+        $this->assertSame('519ef80502efbc349db62a256f8cd8d4e0c4fbe57984856adb2eed66cebd43b4', $params->getJSignPdfDownloadSha256());
     }
 
     public function testKeepsTheSha256GivenWithACustomDownloadUrl(): void
