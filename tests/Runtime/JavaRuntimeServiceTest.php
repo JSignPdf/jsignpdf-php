@@ -1,5 +1,16 @@
 <?php
 
+namespace Jeidison\JSignPDF\Runtime;
+
+function rename(string $from, string $to): bool
+{
+    global $mockRenameFails;
+    if (is_callable($mockRenameFails) && $mockRenameFails($from, $to)) {
+        return false;
+    }
+    return \rename($from, $to);
+}
+
 namespace Jeidison\JSignPDF\Tests;
 
 use donatj\MockWebServer\MockWebServer;
@@ -364,7 +375,39 @@ class JavaRuntimeServiceTest extends TestCase
     public function testGetPathRestoresThePreviousJavaWhenTheReplacementFails(): void
     {
         $this->installPreviousJava();
-        chmod($this->testTmpDir . '/lib', 0555);
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+        $this->failRenames(fn (string $from, string $to): bool => str_contains($from, '/.java_staging_')
+            && str_ends_with($to, '/lib'));
+
+        $this->assertGetPathFails($jsignParam, '/^Failure to replace the Java runtime at: .*\/lib$/');
+
+        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('old modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(['bin', 'lib'], $this->entries($this->testTmpDir));
+    }
+
+    public function testGetPathKeepsThePreviousJavaWhenRestoringItFails(): void
+    {
+        $this->installPreviousJava();
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+        $this->failRenames(fn (string $from, string $to): bool => str_ends_with($to, '/lib')
+            && !str_contains($to, '/.java_previous_'));
+
+        $this->assertGetPathFails(
+            $jsignParam,
+            '/^Failure to replace the Java runtime at: .*\/lib\. The previous Java runtime could not be restored and was kept at: .*\/\.java_previous_[0-9a-f]+$/'
+        );
+
+        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $previousRuntimes = glob($this->testTmpDir . '/.java_previous_*');
+        $this->assertCount(1, $previousRuntimes);
+        $this->assertSame(['lib'], $this->entries($previousRuntimes[0]));
+        $this->assertSame('old modules', file_get_contents($previousRuntimes[0] . '/lib/modules'));
+        $this->assertSame([basename($previousRuntimes[0]), 'bin'], $this->entries($this->testTmpDir));
+    }
+
+    private function paramsDownloadingTheNewJava(): JSignParam
+    {
         [$url] = $this->serveJavaPackage([
             'jdk-21.0.13+9-jre/bin/java' => 'new java',
             'jdk-21.0.13+9-jre/lib/modules' => 'new modules',
@@ -372,15 +415,13 @@ class JavaRuntimeServiceTest extends TestCase
         $jsignParam = new JSignParam();
         $jsignParam->setJavaPath($this->testTmpDir . '/bin/java');
         $jsignParam->setJavaDownloadUrl($url);
+        return $jsignParam;
+    }
 
-        try {
-            $this->assertGetPathFails($jsignParam, '/Failure to replace the Java runtime/');
-        } finally {
-            chmod($this->testTmpDir . '/lib', 0755);
-        }
-        $this->assertSame('old java', file_get_contents($this->testTmpDir . '/bin/java'));
-        $this->assertSame('old modules', file_get_contents($this->testTmpDir . '/lib/modules'));
-        $this->assertSame(['bin', 'lib'], $this->entries($this->testTmpDir));
+    private function failRenames(callable $renameFails): void
+    {
+        global $mockRenameFails;
+        $mockRenameFails = $renameFails;
     }
 
     private function installPreviousJava(): void
@@ -452,6 +493,7 @@ class JavaRuntimeServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        $this->failRenames(fn (): bool => false);
         $this->server?->stop();
         $dirs = glob(sys_get_temp_dir() . '/jsignpdf_temp_*', GLOB_ONLYDIR);
 

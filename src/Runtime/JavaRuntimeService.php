@@ -133,13 +133,21 @@ class JavaRuntimeService
             foreach ($installed as $entry) {
                 $this->deletePath($baseDir . '/' . $entry);
             }
+            $restored = true;
             foreach ($movedAside as $entry) {
-                @rename($previous . '/' . $entry, $baseDir . '/' . $entry);
+                $restored = @rename($previous . '/' . $entry, $baseDir . '/' . $entry) && $restored;
             }
-            throw $exception;
-        } finally {
+            if (!$restored) {
+                throw new RuntimeException(
+                    $exception->getMessage() . '. The previous Java runtime could not be restored and was kept at: ' . $previous,
+                    0,
+                    $exception
+                );
+            }
             $this->deletePath($previous);
+            throw $exception;
         }
+        $this->deletePath($previous);
     }
 
     private function move(string $source, string $target): void
