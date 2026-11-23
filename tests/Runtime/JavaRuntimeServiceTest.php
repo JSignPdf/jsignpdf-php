@@ -349,6 +349,46 @@ class JavaRuntimeServiceTest extends TestCase
         );
     }
 
+    public function testGetPathRemovesThePreviousJavaEntriesTheNewOneNoLongerShips(): void
+    {
+        $this->installPreviousJava();
+        mkdir($this->testTmpDir . '/man');
+        file_put_contents($this->testTmpDir . '/man/java.1', 'only in the old java');
+        file_put_contents($this->testTmpDir . '/notes.txt', 'not installed by the package');
+        file_put_contents(
+            $this->testTmpDir . '/.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.8_9.tar.gz',
+            "bin\nlib\nman\n"
+        );
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame('new java', file_get_contents($this->testTmpDir . '/bin/java'));
+        $this->assertSame('new modules', file_get_contents($this->testTmpDir . '/lib/modules'));
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib', 'notes.txt'],
+            $this->entries($this->testTmpDir)
+        );
+        $this->assertSame(
+            "bin\nlib\n",
+            file_get_contents($this->testTmpDir . '/.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz')
+        );
+    }
+
+    public function testGetPathKeepsThePreviousJavaEntriesWhenItsInstalledEntriesAreUnknown(): void
+    {
+        $this->installPreviousJava();
+        mkdir($this->testTmpDir . '/man');
+        $jsignParam = $this->paramsDownloadingTheNewJava();
+
+        (new JavaRuntimeService())->getPath($jsignParam);
+
+        $this->assertSame(
+            ['.java_version_OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz', 'bin', 'lib', 'man'],
+            $this->entries($this->testTmpDir)
+        );
+    }
+
     public function testGetPathKeepsThePreviousJavaWhenTheDownloadHasNoJavaBinary(): void
     {
         $this->installPreviousJava();

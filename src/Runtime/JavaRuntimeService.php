@@ -100,18 +100,39 @@ class JavaRuntimeService
                 throw new RuntimeException('Java binary not found in the file downloaded from: ' . $url);
             }
             chmod($runtime . '/bin/java', 0700);
+            $entries = array_values(array_diff(scandir($runtime) ?: [], ['.', '..']));
+            $previousEntries = [];
             foreach (glob($baseDir . '/.java_version_*') ?: [] as $previousVersion) {
+                $previousEntries = array_merge($previousEntries, $this->installedEntries($previousVersion));
                 unlink($previousVersion);
             }
-            $this->replaceInstall($runtime, $baseDir);
+            $this->replaceInstall($runtime, $baseDir, $entries, array_diff($previousEntries, $entries));
         } finally {
             $this->deletePath($staging);
             $this->deletePath($baseDir . '/java.tar.gz');
         }
-        touch($baseDir . '/' . $this->versionMarker($url, $sha256));
+        file_put_contents($baseDir . '/' . $this->versionMarker($url, $sha256), implode("\n", $entries) . "\n");
     }
 
-    private function replaceInstall(string $source, string $baseDir): void
+    /**
+     * @return list<string>
+     */
+    private function installedEntries(string $versionMarker): array
+    {
+        $entries = [];
+        foreach (file($versionMarker, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $entry) {
+            if ($entry === basename($entry) && !in_array($entry, ['.', '..', 'java.tar.gz'], true) && !str_starts_with($entry, '.java_')) {
+                $entries[] = $entry;
+            }
+        }
+        return $entries;
+    }
+
+    /**
+     * @param list<string> $entries
+     * @param array<string> $obsoleteEntries
+     */
+    private function replaceInstall(string $source, string $baseDir, array $entries, array $obsoleteEntries): void
     {
         $previous = $baseDir . '/.java_previous_' . bin2hex(random_bytes(8));
         if (!mkdir($previous, 0700)) {
@@ -120,7 +141,7 @@ class JavaRuntimeService
         $movedAside = [];
         $installed = [];
         try {
-            foreach (array_diff(scandir($source) ?: [], ['.', '..']) as $entry) {
+            foreach ($entries as $entry) {
                 $target = $baseDir . '/' . $entry;
                 if (file_exists($target) || is_link($target)) {
                     $this->move($target, $previous . '/' . $entry);
@@ -128,6 +149,13 @@ class JavaRuntimeService
                 }
                 $this->move($source . '/' . $entry, $target);
                 $installed[] = $entry;
+            }
+            foreach ($obsoleteEntries as $entry) {
+                $target = $baseDir . '/' . $entry;
+                if (file_exists($target) || is_link($target)) {
+                    $this->move($target, $previous . '/' . $entry);
+                    $movedAside[] = $entry;
+                }
             }
         } catch (RuntimeException $exception) {
             foreach ($installed as $entry) {
