@@ -393,17 +393,39 @@ class JSignPDFTest extends TestCase
         $this->assertEquals($password . PHP_EOL, file_get_contents($mockProcStdinFile));
     }
 
+    public function testSignRepacksAUnicodePasswordWithARandomOne(): void
+    {
+        global $mockExec, $mockProcStdinFile;
+        $mockExec = ['Finished: Signature succesfully created.'];
+        $params = $this->withFakeRuntime();
+        $params->setCertificate($this->getNewCert('with 😃 unicode'));
+        $params->setPassword('with 😃 unicode');
+        $params->setPathPdfSigned('vfs://download/temp');
+        file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
+
+        $this->service->sign($params);
+
+        $repackPassword = rtrim((string) file_get_contents($mockProcStdinFile), PHP_EOL);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $repackPassword);
+        $this->assertTrue(openssl_pkcs12_read($params->getCertificate(), $certificate, $repackPassword));
+    }
+
     public function testSignEscapesEveryPathOfTheCommand(): void
     {
         global $mockExec, $mockProcCommand;
         $mockExec = ['Finished: Signature succesfully created.'];
         $params = $this->withFakeRuntime();
-        mkdir("vfs://download/temp dir with 'quote'", 0755, true);
-        $params->setTempPath("vfs://download/temp dir with 'quote'/");
+        $temporaryDirectory = sys_get_temp_dir() . "/jsignpdf temp dir with 'quote' " . bin2hex(random_bytes(8));
+        mkdir($temporaryDirectory, 0700);
+        $params->setTempPath($temporaryDirectory . '/');
         $params->setCertificate($this->getNewCert($params->getPassword()));
         file_put_contents($params->getTempPdfSignedPath(), 'signed file content');
 
-        $this->service->sign($params);
+        try {
+            $this->service->sign($params);
+        } finally {
+            rmdir($temporaryDirectory);
+        }
 
         $this->assertStringContainsString(escapeshellarg('vfs://download/jvava/bin/java'), $mockProcCommand);
         $this->assertStringContainsString(escapeshellarg($params->getTempPdfPath()), $mockProcCommand);

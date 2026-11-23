@@ -1,0 +1,144 @@
+<?php
+
+namespace Jeidison\JSignPDF;
+
+function fopen(string $filename, string $mode)
+{
+    global $handleOpenedOnCreation;
+    $file = \fopen($filename, $mode);
+    if ($mode === 'x' && $file !== false && $handleOpenedOnCreation === null) {
+        $handleOpenedOnCreation = \fopen($filename, 'r');
+    }
+    return $file;
+}
+
+function fwrite($stream, string $data)
+{
+    global $failingWrite, $throwingWrite;
+    if ($throwingWrite) {
+        \fwrite($stream, substr($data, 0, 1));
+        throw new \ErrorException('fwrite(): Write of ' . strlen($data) . ' bytes failed with errno=28 No space left on device');
+    }
+    return $failingWrite ? 0 : \fwrite($stream, $data);
+}
+
+namespace Jeidison\JSignPDF\Tests;
+
+use ErrorException;
+use Jeidison\JSignPDF\JSignFileService;
+use PHPUnit\Framework\TestCase;
+use RuntimeException;
+
+class JSignFileServiceTest extends TestCase
+{
+    private string $directory;
+
+    protected function setUp(): void
+    {
+        global $handleOpenedOnCreation, $failingWrite, $throwingWrite;
+        $handleOpenedOnCreation = false;
+        $failingWrite = false;
+        $throwingWrite = false;
+        $this->directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'jsignpdf_' . bin2hex(random_bytes(8)) . DIRECTORY_SEPARATOR;
+        mkdir($this->directory, 0700);
+    }
+
+    protected function tearDown(): void
+    {
+        foreach (glob($this->directory . '*') ?: [] as $file) {
+            unlink($file);
+        }
+        rmdir($this->directory);
+    }
+
+    public function testStoreFileWritesTheContent(): void
+    {
+        $filename = JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+
+        $this->assertSame($this->directory . 'certificate.pfx', $filename);
+        $this->assertSame('content', file_get_contents($filename));
+    }
+
+    public function testStoreFileKeepsTheFileReadableOnlyByItsOwner(): void
+    {
+        $previousUmask = umask(0);
+        try {
+            $filename = JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+        } finally {
+            umask($previousUmask);
+        }
+
+        clearstatcache();
+        $this->assertSame(0600, fileperms($filename) & 0777);
+    }
+
+    public function testStoreFileKeepsTheContentAwayFromAHandleOpenedWhenThePathWasCreated(): void
+    {
+        global $handleOpenedOnCreation;
+        $handleOpenedOnCreation = null;
+
+        JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+
+        $this->assertIsResource($handleOpenedOnCreation);
+        $this->assertSame('', stream_get_contents($handleOpenedOnCreation));
+    }
+
+    public function testStoreFileLeavesNothingBehindWhenTheWriteFails(): void
+    {
+        global $failingWrite;
+        $failingWrite = true;
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('A failed write was reported as success.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('certificate.pfx', $exception->getMessage());
+        }
+
+        $this->assertSame([], glob($this->directory . '*'));
+    }
+
+    public function testStoreFileLeavesNothingBehindWhenTheWriteThrows(): void
+    {
+        global $throwingWrite;
+        $throwingWrite = true;
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('A throwing write was reported as success.');
+        } catch (ErrorException $exception) {
+            $this->assertStringContainsString('No space left on device', $exception->getMessage());
+        }
+
+        $this->assertSame([], glob($this->directory . '*'));
+    }
+
+    public function testStoreFileDoesNotWriteIntoAFileThatAlreadyExists(): void
+    {
+        file_put_contents($this->directory . 'certificate.pfx', 'planted');
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('An existing file was reused.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('certificate.pfx', $exception->getMessage());
+        }
+
+        $this->assertSame('planted', file_get_contents($this->directory . 'certificate.pfx'));
+    }
+
+    public function testStoreFileDoesNotFollowASymlinkLeftInItsPlace(): void
+    {
+        $target = $this->directory . 'target';
+        touch($target);
+        symlink($target, $this->directory . 'certificate.pfx');
+
+        try {
+            JSignFileService::instance()->storeFile($this->directory, 'certificate.pfx', 'content');
+            $this->fail('The symlink was followed.');
+        } catch (RuntimeException) {
+        }
+
+        $this->assertSame('', file_get_contents($target));
+    }
+}
