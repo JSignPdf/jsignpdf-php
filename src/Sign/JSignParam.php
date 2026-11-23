@@ -59,9 +59,9 @@ class JSignParam
         '-tsu'  => '--tsa-user',
     ];
 
-    private const JSIGNPDF_VERSION = '3.2.0';
+    private const JSIGNPDF_VERSION = '3.2.1';
 
-    private const JSIGNPDF_SHA256 = '960c1a90222682eef293f44421097b5c1f2cb00e9a9415cc608334616fbda00c';
+    private const JSIGNPDF_SHA256 = '519ef80502efbc349db62a256f8cd8d4e0c4fbe57984856adb2eed66cebd43b4';
 
     private const JAVA_DOWNLOAD_URL = 'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.13_9.tar.gz';
 
